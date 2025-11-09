@@ -1,0 +1,53 @@
+### IntelliJ IDEA ###
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+.kotlin
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### MySQL JDBC Driver ###
+# For SCHOOL PROJECTS: Keep these lines COMMENTED OUT (with #) to include JAR
+# For PROFESSIONAL: Remove # to exclude JAR from repository
+#
+# CURRENT SETTING: JAR is EXCLUDED (users must download it)
+# To include JAR: Add # before each line below
+mysql-connector-*.jar
+mysql-connector-java-*.jar
+lib/mysql-connector-*.jar
+#
+# NOTE: If you include the JAR in your repo, team members still need to
+# add it in IntelliJ: File → Project Structure → Modules → Dependencies
+
+### Database Files ###
+# Don't commit database files - they're created automatically
+*.sql
+database/backup/
+*.db
+
+### Personal Configuration ###
+# Uncomment this if you want each user to have their own database password
+# config/DatabaseConfig.java
