@@ -1,436 +1,370 @@
+// JavaFX version of InventoryForm
 package gui;
 
 import dao.ProductDAO;
 import models.Product;
 import utils.SessionManager;
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.sql.Date;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
+import javafx.stage.FileChooser;
+import javafx.stage.Screen;
+import javafx.geometry.Rectangle2D;
+
+import java.io.File;
 import java.util.List;
 
-/**
- * Inventory Form
- * Displays and manages product inventory
- */
-public class InventoryForm extends JFrame {
+public class InventoryForm extends Application {
     private ProductDAO productDAO;
-    private JTable productTable;
-    private DefaultTableModel tableModel;
-    private JPanel mainPanel;
+    private TableView<Product> productTable;
+    private ObservableList<Product> tableData;
+    private TextField searchField;
 
-    public InventoryForm() {
+    @Override
+    public void start(Stage primaryStage) {
         productDAO = new ProductDAO();
-        initComponents();
-        loadProducts();
-    }
+        primaryStage.setTitle("IMS - Inventory");
+        BorderPane container = new BorderPane();
+        container.setPadding(new Insets(10));
 
-    private void initComponents() {
-        setTitle("IMS - Inventory");
-        setSize(1200, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+        VBox sidebar = NavigationPanel.createSidebar(primaryStage, "Items");
+        container.setLeft(sidebar);
 
-        JPanel container = new JPanel(new BorderLayout());
+        VBox mainPanel = new VBox(10);
+        mainPanel.setPadding(new Insets(20));
+        mainPanel.setStyle("-fx-background-color: white;");
 
-        // Sidebar
-        JPanel sidebar = createSidebar();
-        container.add(sidebar, BorderLayout.WEST);
+        HBox headerPanel = new HBox(10);
+        headerPanel.setAlignment(Pos.CENTER_LEFT);
+        Label productsLabel = new Label("Products");
+        GuiUtils.styleHeaderLabel(productsLabel);
+        headerPanel.getChildren().add(productsLabel);
 
-        // Top Bar
-        JPanel topBar = createTopBar();
-        container.add(topBar, BorderLayout.NORTH);
+        // Search field on the left
+        searchField = new TextField();
+        searchField.setPromptText("Search by product name");
+        searchField.setPrefWidth(300);
+        headerPanel.getChildren().add(searchField);
 
-        // Main Content
-        mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        // spacer to push buttons to the right
+        Region headerSpacer = new Region();
+        HBox.setHgrow(headerSpacer, Priority.ALWAYS);
+        headerPanel.getChildren().add(headerSpacer);
 
-        createInventoryTable();
+        // Right-side action buttons
+        Button searchBtn = new Button("Search");
+        searchBtn.setOnAction(this::searchAction);
+        GuiUtils.styleSecondary(searchBtn);
+        Button addButton = new Button("+ Add Product");
+        addButton.setOnAction(this::addProductAction);
+        GuiUtils.stylePrimary(addButton);
+        Button downloadButton = new Button("Download all");
+        downloadButton.setOnAction(this::downloadAction);
+        GuiUtils.styleSecondary(downloadButton);
+        // Add in order: Search, Add (admin only), Download (admin only)
+        headerPanel.getChildren().add(searchBtn);
+        if (SessionManager.isAdmin()) headerPanel.getChildren().add(addButton);
+        if (SessionManager.isAdmin()) headerPanel.getChildren().add(downloadButton);
 
-        container.add(mainPanel, BorderLayout.CENTER);
-        add(container);
-    }
+        mainPanel.getChildren().add(headerPanel);
 
-    private JPanel createSidebar() {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(200, 700));
-        sidebar.setBackground(new Color(240, 248, 255));
-        sidebar.setLayout(null);
-
-        JLabel logoLabel = new JLabel("IMS");
-        logoLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        logoLabel.setForeground(new Color(26, 54, 93));
-        logoLabel.setBounds(20, 20, 50, 30);
-        sidebar.add(logoLabel);
-
-        JLabel logoText = new JLabel("Inventory System");
-        logoText.setFont(new Font("Arial", Font.PLAIN, 11));
-        logoText.setForeground(Color.GRAY);
-        logoText.setBounds(70, 23, 120, 25);
-        sidebar.add(logoText);
-
-        JButton dashboardBtn = createMenuButton("Dashboard", 80, false);
-        JButton itemsBtn = createMenuButton("Items", 130, true);
-        JButton requestBtn = createMenuButton("Request", 180, false);
-
-        sidebar.add(dashboardBtn);
-        sidebar.add(itemsBtn);
-        sidebar.add(requestBtn);
-
-        dashboardBtn.addActionListener(e -> {
-            this.dispose();
-            new DashboardForm().setVisible(true);
-        });
-
-        requestBtn.addActionListener(e -> {
-            this.dispose();
-            new RequestForm().setVisible(true);
-        });
-
-        return sidebar;
-    }
-
-    private JButton createMenuButton(String text, int y, boolean selected) {
-        JButton btn = new JButton(text);
-        btn.setBounds(10, y, 180, 40);
-        btn.setFont(new Font("Arial", Font.PLAIN, 14));
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        if (selected) {
-            btn.setBackground(new Color(0, 123, 255));
-            btn.setForeground(Color.WHITE);
-        } else {
-            btn.setBackground(new Color(240, 248, 255));
-            btn.setForeground(Color.DARK_GRAY);
-        }
-
-        return btn;
-    }
-
-    private JPanel createTopBar() {
-        JPanel topBar = new JPanel();
-        topBar.setPreferredSize(new Dimension(1000, 60));
-        topBar.setBackground(Color.WHITE);
-        topBar.setLayout(null);
-        topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
-
-        JLabel titleLabel = new JLabel("INVENTORY");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        titleLabel.setBounds(20, 15, 200, 30);
-        topBar.add(titleLabel);
-
-        return topBar;
-    }
-
-    private void createInventoryTable() {
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(Color.WHITE);
-
-        // Header with buttons
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        headerPanel.setBackground(Color.WHITE);
-
-        JLabel productsLabel = new JLabel("Products");
-        productsLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        headerPanel.add(productsLabel);
-
-        headerPanel.add(Box.createHorizontalStrut(500));
-
-        JButton addButton = new JButton("+ Add Product");
-        addButton.setBackground(new Color(0, 123, 255));
-        addButton.setForeground(Color.WHITE);
-        addButton.setFocusPainted(false);
-        addButton.setBorderPainted(false);
-        addButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addButton.addActionListener(e -> showAddProductDialog());
-        headerPanel.add(addButton);
-
-        JButton filterButton = new JButton("Filters");
-        filterButton.setBackground(Color.WHITE);
-        filterButton.setBorder(BorderFactory.createLineBorder(Color.GRAY));
-        filterButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        headerPanel.add(filterButton);
-
-        JButton downloadButton = new JButton("Download all");
-        downloadButton.setBackground(Color.WHITE);
-        downloadButton.setBorder(BorderFactory.createLineBorder(Color.GRAY));
-        downloadButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        headerPanel.add(downloadButton);
-
-        tablePanel.add(headerPanel, BorderLayout.NORTH);
-
-        // Table
-        String[] columns = {"Product ID", "Products", "Buying Price", "Quantity",
-                           "Threshold Value", "Expiry Date", "Availability"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        productTable = new JTable(tableModel);
-        productTable.setRowHeight(35);
-        productTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
-        productTable.setFont(new Font("Arial", Font.PLAIN, 12));
-
-        // Add mouse listener for row selection
-        productTable.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    int row = productTable.getSelectedRow();
-                    if (row >= 0) {
-                        showEditProductDialog(row);
+        productTable = new TableView<>();
+        tableData = FXCollections.observableArrayList();
+        TableColumn<Product, Integer> idCol = new TableColumn<>("ID");
+        idCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("productId"));
+        TableColumn<Product, String> nameCol = new TableColumn<>("Name");
+        nameCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("productName"));
+        TableColumn<Product, Double> buyCol = new TableColumn<>("Buying Price");
+        buyCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("buyingPrice"));
+        TableColumn<Product, Double> sellCol = new TableColumn<>("Selling Price");
+        sellCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("sellingPrice"));
+        TableColumn<Product, Integer> qtyCol = new TableColumn<>("Stock");
+        qtyCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("stockQuantity"));
+        TableColumn<Product, Integer> threshCol = new TableColumn<>("Threshold");
+        threshCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("thresholdValue"));
+        productTable.getColumns().addAll(java.util.List.of(idCol, nameCol, buyCol, sellCol, qtyCol, threshCol));
+        productTable.setItems(tableData);
+        productTable.setPrefHeight(500);
+        productTable.setRowFactory(new javafx.util.Callback<TableView<Product>, TableRow<Product>>() {
+            @Override
+            public TableRow<Product> call(TableView<Product> tv) {
+                TableRow<Product> row = new TableRow<>();
+                row.setOnMouseClicked(event -> {
+                    if (!row.isEmpty() && event.getClickCount() == 2 && SessionManager.isAdmin()) {
+                        showEditProductDialog(row.getItem());
                     }
-                }
+                });
+                return row;
             }
         });
+        mainPanel.getChildren().add(productTable);
 
-        JScrollPane scrollPane = new JScrollPane(productTable);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
+        // Action toolbar placed directly below the table for clearer layout
+        HBox actionBar = new HBox(10);
+        actionBar.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+        actionBar.setPadding(new Insets(8, 0, 0, 0));
 
-        mainPanel.add(tablePanel);
+        Button editButton = new Button("Edit Selected");
+        editButton.setOnAction(e -> editSelectedAction());
+        GuiUtils.styleWarning(editButton);
+
+        Button deleteButton = new Button("Delete Selected");
+        deleteButton.setOnAction(e -> deleteSelectedProduct());
+        GuiUtils.styleDanger(deleteButton);
+
+        // Only show edit/delete buttons to admins and add them to the action bar
+        if (SessionManager.isAdmin()) {
+            actionBar.getChildren().addAll(editButton, deleteButton);
+        }
+
+        mainPanel.getChildren().add(actionBar);
+
+        container.setCenter(mainPanel);
+        loadProducts(null);
+
+        Scene scene = new Scene(container, 1200, 700);
+        primaryStage.setScene(scene);
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+        primaryStage.setX(bounds.getMinX());
+        primaryStage.setY(bounds.getMinY());
+        primaryStage.setWidth(bounds.getWidth());
+        primaryStage.setHeight(bounds.getHeight());
+        primaryStage.setMaximized(true);
+        primaryStage.show();
     }
 
-    private void loadProducts() {
-        tableModel.setRowCount(0);
-        List<Product> products = productDAO.getAllProducts();
-
-        for (Product p : products) {
-            Object[] row = {
-                String.format("%02d", p.getProductId()),
-                p.getProductName(),
-                "₱" + String.format("%.2f", p.getBuyingPrice()),
-                p.getStockQuantity() + " Packets",
-                p.getThresholdValue() + " Packets",
-                p.getExpiryDate() != null ? p.getExpiryDate().toString() : "N/A",
-                p.getAvailabilityStatus()
-            };
-            tableModel.addRow(row);
-        }
+    private void loadProducts(String search) {
+        tableData.clear();
+        List<Product> products = (search == null || search.isEmpty()) ? productDAO.getAllProducts() : productDAO.searchProducts(search);
+        tableData.addAll(products);
     }
 
     private void showAddProductDialog() {
-        JDialog dialog = new JDialog(this, "Add New Product", true);
-        dialog.setSize(400, 500);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(null);
+        if (!SessionManager.isAdmin()) {
+            showAlert("Only Admin can add products.", Alert.AlertType.WARNING);
+            return;
+        }
+        Dialog<Product> dialog = new Dialog<>();
+        dialog.setTitle("Add New Product");
+        dialog.setHeaderText("Fill in the product details");
 
-        JLabel titleLabel = new JLabel("Add New Product");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        titleLabel.setBounds(20, 20, 200, 25);
-        dialog.add(titleLabel);
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
 
-        // Product Name
-        JLabel nameLabel = new JLabel("Product Name:");
-        nameLabel.setBounds(20, 60, 150, 25);
-        dialog.add(nameLabel);
+        TextField nameField = new TextField();
+        nameField.setPromptText("Product Name");
+        TextField buyingField = new TextField();
+        buyingField.setPromptText("Buying Price");
+        TextField sellingField = new TextField();
+        sellingField.setPromptText("Selling Price");
+        TextField qtyField = new TextField();
+        qtyField.setPromptText("Quantity");
+        TextField thresholdField = new TextField();
+        thresholdField.setPromptText("Threshold");
+        TextField expiryField = new TextField();
+        expiryField.setPromptText("Expiry Date (YYYY-MM-DD)");
 
-        JTextField nameField = new JTextField();
-        nameField.setBounds(20, 85, 350, 30);
-        dialog.add(nameField);
+        grid.add(new Label("Product Name:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Buying Price:"), 0, 1);
+        grid.add(buyingField, 1, 1);
+        grid.add(new Label("Selling Price:"), 0, 2);
+        grid.add(sellingField, 1, 2);
+        grid.add(new Label("Quantity:"), 0, 3);
+        grid.add(qtyField, 1, 3);
+        grid.add(new Label("Threshold:"), 0, 4);
+        grid.add(thresholdField, 1, 4);
+        grid.add(new Label("Expiry Date:"), 0, 5);
+        grid.add(expiryField, 1, 5);
 
-        // Buying Price
-        JLabel buyingLabel = new JLabel("Buying Price:");
-        buyingLabel.setBounds(20, 125, 150, 25);
-        dialog.add(buyingLabel);
+        dialog.getDialogPane().setContent(grid);
 
-        JTextField buyingField = new JTextField();
-        buyingField.setBounds(20, 150, 350, 30);
-        dialog.add(buyingField);
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        // Selling Price
-        JLabel sellingLabel = new JLabel("Selling Price:");
-        sellingLabel.setBounds(20, 190, 150, 25);
-        dialog.add(sellingLabel);
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                return new Product(
+                    nameField.getText(),
+                    Double.parseDouble(buyingField.getText()),
+                    Double.parseDouble(sellingField.getText()),
+                    Integer.parseInt(qtyField.getText()),
+                    Integer.parseInt(thresholdField.getText()),
+                    expiryField.getText().isEmpty() ? null : java.sql.Date.valueOf(expiryField.getText())
+                );
+            }
+            return null;
+        });
 
-        JTextField sellingField = new JTextField();
-        sellingField.setBounds(20, 215, 350, 30);
-        dialog.add(sellingField);
-
-        // Quantity
-        JLabel qtyLabel = new JLabel("Quantity:");
-        qtyLabel.setBounds(20, 255, 150, 25);
-        dialog.add(qtyLabel);
-
-        JTextField qtyField = new JTextField();
-        qtyField.setBounds(20, 280, 350, 30);
-        dialog.add(qtyField);
-
-        // Threshold
-        JLabel thresholdLabel = new JLabel("Threshold:");
-        thresholdLabel.setBounds(20, 320, 150, 25);
-        dialog.add(thresholdLabel);
-
-        JTextField thresholdField = new JTextField();
-        thresholdField.setBounds(20, 345, 350, 30);
-        dialog.add(thresholdField);
-
-        // Buttons
-        JButton saveButton = new JButton("Save");
-        saveButton.setBounds(20, 400, 165, 35);
-        saveButton.setBackground(new Color(0, 123, 255));
-        saveButton.setForeground(Color.WHITE);
-        saveButton.setFocusPainted(false);
-        saveButton.setBorderPainted(false);
-        saveButton.addActionListener(e -> {
+        dialog.showAndWait().ifPresent(product -> {
             try {
-                Product product = new Product();
-                product.setProductName(nameField.getText());
-                product.setBuyingPrice(Double.parseDouble(buyingField.getText()));
-                product.setSellingPrice(Double.parseDouble(sellingField.getText()));
-                product.setStockQuantity(Integer.parseInt(qtyField.getText()));
-                product.setThresholdValue(Integer.parseInt(thresholdField.getText()));
-
                 if (productDAO.createProduct(product)) {
-                    JOptionPane.showMessageDialog(dialog, "Product added successfully!");
-                    loadProducts();
-                    dialog.dispose();
+                    showAlert("Product added successfully!", Alert.AlertType.INFORMATION);
+                    loadProducts(null);
                 } else {
-                    JOptionPane.showMessageDialog(dialog, "Failed to add product!",
-                        "Error", JOptionPane.ERROR_MESSAGE);
+                    showAlert("Failed to add product!", Alert.AlertType.ERROR);
                 }
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Invalid input: " + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (Exception e) {
+                showAlert("Invalid input: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         });
-        dialog.add(saveButton);
-
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.setBounds(205, 400, 165, 35);
-        cancelButton.setBackground(Color.LIGHT_GRAY);
-        cancelButton.setFocusPainted(false);
-        cancelButton.setBorderPainted(false);
-        cancelButton.addActionListener(e -> dialog.dispose());
-        dialog.add(cancelButton);
-
-        dialog.setVisible(true);
     }
 
-    private void showEditProductDialog(int row) {
-        int productId = Integer.parseInt(productTable.getValueAt(row, 0).toString());
-        Product product = productDAO.getProductById(productId);
+    private void showEditProductDialog(Product product) {
+        if (!SessionManager.isAdmin()) {
+            showAlert("Only Admin can edit products.", Alert.AlertType.WARNING);
+            return;
+        }
+        Dialog<Product> dialog = new Dialog<>();
+        dialog.setTitle("Edit Product");
+        dialog.setHeaderText("Edit the product details");
 
-        if (product == null) return;
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
 
-        JDialog dialog = new JDialog(this, "Edit Product", true);
-        dialog.setSize(400, 550);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(null);
+        TextField nameField = new TextField(product.getProductName());
+        nameField.setPromptText("Product Name");
+        TextField buyingField = new TextField(String.valueOf(product.getBuyingPrice()));
+        buyingField.setPromptText("Buying Price");
+        TextField sellingField = new TextField(String.valueOf(product.getSellingPrice()));
+        sellingField.setPromptText("Selling Price");
+        TextField qtyField = new TextField(String.valueOf(product.getStockQuantity()));
+        qtyField.setPromptText("Quantity");
+        TextField thresholdField = new TextField(String.valueOf(product.getThresholdValue()));
+        thresholdField.setPromptText("Threshold");
+        TextField expiryField = new TextField(product.getExpiryDate() != null ? product.getExpiryDate().toString() : "");
+        expiryField.setPromptText("Expiry Date (YYYY-MM-DD)");
 
-        JLabel titleLabel = new JLabel("Edit Product");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        titleLabel.setBounds(20, 20, 200, 25);
-        dialog.add(titleLabel);
+        grid.add(new Label("Product Name:"), 0, 0);
+        grid.add(nameField, 1, 0);
+        grid.add(new Label("Buying Price:"), 0, 1);
+        grid.add(buyingField, 1, 1);
+        grid.add(new Label("Selling Price:"), 0, 2);
+        grid.add(sellingField, 1, 2);
+        grid.add(new Label("Quantity:"), 0, 3);
+        grid.add(qtyField, 1, 3);
+        grid.add(new Label("Threshold:"), 0, 4);
+        grid.add(thresholdField, 1, 4);
+        grid.add(new Label("Expiry Date:"), 0, 5);
+        grid.add(expiryField, 1, 5);
 
-        // Fields pre-filled with product data
-        JLabel nameLabel = new JLabel("Product Name:");
-        nameLabel.setBounds(20, 60, 150, 25);
-        dialog.add(nameLabel);
+        dialog.getDialogPane().setContent(grid);
 
-        JTextField nameField = new JTextField(product.getProductName());
-        nameField.setBounds(20, 85, 350, 30);
-        dialog.add(nameField);
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
 
-        JLabel buyingLabel = new JLabel("Buying Price:");
-        buyingLabel.setBounds(20, 125, 150, 25);
-        dialog.add(buyingLabel);
-
-        JTextField buyingField = new JTextField(String.valueOf(product.getBuyingPrice()));
-        buyingField.setBounds(20, 150, 350, 30);
-        dialog.add(buyingField);
-
-        JLabel sellingLabel = new JLabel("Selling Price:");
-        sellingLabel.setBounds(20, 190, 150, 25);
-        dialog.add(sellingLabel);
-
-        JTextField sellingField = new JTextField(String.valueOf(product.getSellingPrice()));
-        sellingField.setBounds(20, 215, 350, 30);
-        dialog.add(sellingField);
-
-        JLabel qtyLabel = new JLabel("Quantity:");
-        qtyLabel.setBounds(20, 255, 150, 25);
-        dialog.add(qtyLabel);
-
-        JTextField qtyField = new JTextField(String.valueOf(product.getStockQuantity()));
-        qtyField.setBounds(20, 280, 350, 30);
-        dialog.add(qtyField);
-
-        JLabel thresholdLabel = new JLabel("Threshold:");
-        thresholdLabel.setBounds(20, 320, 150, 25);
-        dialog.add(thresholdLabel);
-
-        JTextField thresholdField = new JTextField(String.valueOf(product.getThresholdValue()));
-        thresholdField.setBounds(20, 345, 350, 30);
-        dialog.add(thresholdField);
-
-        // Buttons
-        JButton updateButton = new JButton("Update");
-        updateButton.setBounds(20, 400, 110, 35);
-        updateButton.setBackground(new Color(0, 123, 255));
-        updateButton.setForeground(Color.WHITE);
-        updateButton.setFocusPainted(false);
-        updateButton.setBorderPainted(false);
-        updateButton.addActionListener(e -> {
-            try {
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
                 product.setProductName(nameField.getText());
                 product.setBuyingPrice(Double.parseDouble(buyingField.getText()));
                 product.setSellingPrice(Double.parseDouble(sellingField.getText()));
                 product.setStockQuantity(Integer.parseInt(qtyField.getText()));
                 product.setThresholdValue(Integer.parseInt(thresholdField.getText()));
+                product.setExpiryDate(expiryField.getText().isEmpty() ? null : java.sql.Date.valueOf(expiryField.getText()));
+                return product;
+            }
+            return null;
+        });
 
-                if (productDAO.updateProduct(product)) {
-                    JOptionPane.showMessageDialog(dialog, "Product updated successfully!");
-                    loadProducts();
-                    dialog.dispose();
+        dialog.showAndWait().ifPresent(updatedProduct -> {
+            try {
+                if (productDAO.updateProduct(updatedProduct)) {
+                    showAlert("Product updated successfully!", Alert.AlertType.INFORMATION);
+                    loadProducts(null);
                 } else {
-                    JOptionPane.showMessageDialog(dialog, "Failed to update product!",
-                        "Error", JOptionPane.ERROR_MESSAGE);
+                    showAlert("Failed to update product!", Alert.AlertType.ERROR);
                 }
+            } catch (Exception e) {
+                showAlert("Invalid input: " + e.getMessage(), Alert.AlertType.ERROR);
+            }
+        });
+    }
+
+    private void deleteSelectedProduct() {
+        if (!SessionManager.isAdmin()) {
+            showAlert("Only Admin can delete products.", Alert.AlertType.WARNING);
+            return;
+        }
+        Product selected = productTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Select a product to delete.", Alert.AlertType.WARNING);
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirm Delete");
+        alert.setHeaderText("Are you sure you want to delete this product?");
+        alert.setContentText(selected.getProductName());
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    if (productDAO.deleteProduct(selected.getProductId())) {
+                        showAlert("Product deleted successfully!", Alert.AlertType.INFORMATION);
+                        loadProducts(null);
+                    } else {
+                        showAlert("Failed to delete product!", Alert.AlertType.ERROR);
+                    }
+                } catch (Exception e) {
+                    showAlert("Error deleting product: " + e.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
+    }
+
+    private void exportAllProducts() {
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialFileName("products.xls");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xls", "*.xlsx"));
+        File file = chooser.showSaveDialog(productTable.getScene().getWindow());
+        if (file != null) {
+            try {
+                utils.ExcelExportUtils.exportProductsToExcel(productDAO.getAllProducts(), ensureExtension(file, ".xls"));
+                showAlert("Exported successfully.", Alert.AlertType.INFORMATION);
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Invalid input: " + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+                showAlert("Export failed: " + ex.getMessage(), Alert.AlertType.ERROR);
             }
-        });
-        dialog.add(updateButton);
+        }
+    }
 
-        JButton deleteButton = new JButton("Delete");
-        deleteButton.setBounds(145, 400, 110, 35);
-        deleteButton.setBackground(new Color(220, 53, 69));
-        deleteButton.setForeground(Color.WHITE);
-        deleteButton.setFocusPainted(false);
-        deleteButton.setBorderPainted(false);
-        deleteButton.addActionListener(e -> {
-            int confirm = JOptionPane.showConfirmDialog(dialog,
-                "Are you sure you want to delete this product?",
-                "Confirm Delete", JOptionPane.YES_NO_OPTION);
-            if (confirm == JOptionPane.YES_OPTION) {
-                if (productDAO.deleteProduct(productId)) {
-                    JOptionPane.showMessageDialog(dialog, "Product deleted successfully!");
-                    loadProducts();
-                    dialog.dispose();
-                } else {
-                    JOptionPane.showMessageDialog(dialog, "Failed to delete product!",
-                        "Error", JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        });
-        dialog.add(deleteButton);
+    private File ensureExtension(File file, String ext) {
+        if (!file.getName().toLowerCase().endsWith(ext)) {
+            return new File(file.getParent(), file.getName() + ext);
+        }
+        return file;
+    }
 
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.setBounds(270, 400, 100, 35);
-        cancelButton.setBackground(Color.LIGHT_GRAY);
-        cancelButton.setFocusPainted(false);
-        cancelButton.setBorderPainted(false);
-        cancelButton.addActionListener(e -> dialog.dispose());
-        dialog.add(cancelButton);
+    private void showAlert(String message, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(type == Alert.AlertType.ERROR ? "Error" : "Info");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
 
-        dialog.setVisible(true);
+    // Action handlers to avoid unused-parameter warnings in lambdas
+    private void searchAction(javafx.event.ActionEvent e) { loadProducts(searchField.getText().trim()); }
+    private void addProductAction(javafx.event.ActionEvent e) { showAddProductDialog(); }
+    private void downloadAction(javafx.event.ActionEvent e) { exportAllProducts(); }
+    private void editSelectedAction() {
+        Product selected = productTable.getSelectionModel().getSelectedItem();
+        if (selected != null && SessionManager.isAdmin()) {
+            showEditProductDialog(selected);
+        } else {
+            showAlert("Select a product and ensure you are Admin.", Alert.AlertType.WARNING);
+        }
+    }
+
+    static void main(String[] args) {
+        launch(args);
     }
 }
-

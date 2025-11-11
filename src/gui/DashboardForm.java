@@ -1,350 +1,182 @@
+// JavaFX version of DashboardForm
 package gui;
 
 import dao.*;
 import models.*;
-import utils.SessionManager;
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
-import java.awt.event.*;
-import java.util.List;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.paint.Color;
+import javafx.stage.Screen;
+import javafx.geometry.Rectangle2D;
 
-/**
- * Dashboard Form
- * Main dashboard showing inventory overview and sales statistics
- */
-public class DashboardForm extends JFrame {
+import java.util.List;
+import java.util.Map;
+
+public class DashboardForm extends Application {
     private ProductDAO productDAO;
     private SaleDAO saleDAO;
     private RequestDAO requestDAO;
-    private JPanel mainPanel;
-    private JLabel userNameLabel;
-    
-    public DashboardForm() {
+    private VBox mainPanel;
+
+    @Override
+    public void start(Stage primaryStage) {
         productDAO = new ProductDAO();
         saleDAO = new SaleDAO();
         requestDAO = new RequestDAO();
-        initComponents();
-        loadDashboardData();
-    }
-    
-    private void initComponents() {
-        setTitle("IMS - Dashboard");
-        setSize(1200, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
-        
-        // Main container
-        JPanel container = new JPanel(new BorderLayout());
-        
-        // Left Sidebar
-        JPanel sidebar = createSidebar();
-        container.add(sidebar, BorderLayout.WEST);
-        
-        // Top Navigation Bar
-        JPanel topBar = createTopBar();
-        container.add(topBar, BorderLayout.NORTH);
-        
+
+        primaryStage.setTitle("IMS - Dashboard");
+        BorderPane container = new BorderPane();
+        container.setPadding(new Insets(10));
+
+        // Sidebar (removed top header because the navigation drawer provides the title)
+        VBox sidebar = NavigationPanel.createSidebar(primaryStage, "Dashboard");
+        container.setLeft(sidebar);
+
         // Main Content Area
-        mainPanel = new JPanel();
-        mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-        
-        JScrollPane scrollPane = new JScrollPane(mainPanel);
-        scrollPane.setBorder(null);
-        container.add(scrollPane, BorderLayout.CENTER);
-        
-        add(container);
+        mainPanel = new VBox(20);
+        mainPanel.setPadding(new Insets(20));
+        mainPanel.setStyle("-fx-background-color: white;");
+        ScrollPane scrollPane = new ScrollPane(mainPanel);
+        scrollPane.setFitToWidth(true);
+        container.setCenter(scrollPane);
+
+        loadDashboardData();
+        showLowStockAlert();
+
+        Scene scene = new Scene(container, 1200, 700);
+        primaryStage.setScene(scene);
+        // make window occupy the primary screen and be maximized for consistent sizing
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+        primaryStage.setX(bounds.getMinX());
+        primaryStage.setY(bounds.getMinY());
+        primaryStage.setWidth(bounds.getWidth());
+        primaryStage.setHeight(bounds.getHeight());
+        primaryStage.setMaximized(true);
+        primaryStage.show();
     }
-    
-    private JPanel createSidebar() {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(200, 700));
-        sidebar.setBackground(new Color(240, 248, 255));
-        sidebar.setLayout(null);
-        
-        // Logo
-        JLabel logoLabel = new JLabel("IMS");
-        logoLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        logoLabel.setForeground(new Color(26, 54, 93));
-        logoLabel.setBounds(20, 20, 50, 30);
-        sidebar.add(logoLabel);
-        
-        JLabel logoText = new JLabel("Inventory System");
-        logoText.setFont(new Font("Arial", Font.PLAIN, 11));
-        logoText.setForeground(Color.GRAY);
-        logoText.setBounds(70, 23, 120, 25);
-        sidebar.add(logoText);
-        
-        // Menu Items
-        JButton dashboardBtn = createMenuButton("Dashboard", 80, true);
-        JButton itemsBtn = createMenuButton("Items", 130, false);
-        JButton requestBtn = createMenuButton("Request", 180, false);
-        
-        sidebar.add(dashboardBtn);
-        sidebar.add(itemsBtn);
-        sidebar.add(requestBtn);
-        
-        // Action listeners
-        dashboardBtn.addActionListener(e -> loadDashboardData());
-        itemsBtn.addActionListener(e -> {
-            this.dispose();
-            new InventoryForm().setVisible(true);
-        });
-        requestBtn.addActionListener(e -> {
-            this.dispose();
-            new RequestForm().setVisible(true);
-        });
-        
-        return sidebar;
-    }
-    
-    private JButton createMenuButton(String text, int y, boolean selected) {
-        JButton btn = new JButton(text);
-        btn.setBounds(10, y, 180, 40);
-        btn.setFont(new Font("Arial", Font.PLAIN, 14));
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        
-        if (selected) {
-            btn.setBackground(new Color(0, 123, 255));
-            btn.setForeground(Color.WHITE);
-        } else {
-            btn.setBackground(new Color(240, 248, 255));
-            btn.setForeground(Color.DARK_GRAY);
+
+    private void showLowStockAlert() {
+        List<Product> low = productDAO.getLowStockProducts();
+        if (!low.isEmpty()) {
+            StringBuilder sb = new StringBuilder("Low stock items (" + low.size() + "):\n");
+            low.stream().limit(5).forEach(p -> sb.append("- ").append(p.getProductName()).append(" (").append(p.getStockQuantity()).append(")\n"));
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Low Stock Alert");
+            alert.setHeaderText(null);
+            alert.setContentText(sb.toString());
+            alert.showAndWait();
         }
-        
-        return btn;
     }
-    
-    private JPanel createTopBar() {
-        JPanel topBar = new JPanel();
-        topBar.setPreferredSize(new Dimension(1000, 60));
-        topBar.setBackground(Color.WHITE);
-        topBar.setLayout(null);
-        topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
-        
-        JLabel titleLabel = new JLabel("Welcome to dashboard");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        titleLabel.setBounds(20, 15, 300, 30);
-        topBar.add(titleLabel);
-        
-        // Search field
-        JTextField searchField = new JTextField("Search");
-        searchField.setBounds(650, 15, 200, 30);
-        searchField.setForeground(Color.GRAY);
-        topBar.add(searchField);
-        
-        // User info
-        User currentUser = SessionManager.getCurrentUser();
-        userNameLabel = new JLabel(currentUser != null ? currentUser.getFullName() : "User");
-        userNameLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        userNameLabel.setBounds(900, 15, 150, 30);
-        topBar.add(userNameLabel);
-        
-        // Logout button
-        JButton logoutBtn = new JButton("Logout");
-        logoutBtn.setBounds(1050, 15, 80, 30);
-        logoutBtn.setBackground(new Color(220, 53, 69));
-        logoutBtn.setForeground(Color.WHITE);
-        logoutBtn.setFocusPainted(false);
-        logoutBtn.setBorderPainted(false);
-        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        logoutBtn.addActionListener(e -> {
-            SessionManager.clearSession();
-            this.dispose();
-            new LoginForm().setVisible(true);
-        });
-        topBar.add(logoutBtn);
-        
-        return topBar;
-    }
-    
+
     private void loadDashboardData() {
-        mainPanel.removeAll();
-        
-        // Best Selling Items Section
-        JPanel bestSellingPanel = createBestSellingPanel();
-        mainPanel.add(bestSellingPanel);
-        mainPanel.add(Box.createVerticalStrut(20));
-        
-        // Statistics Cards
-        JPanel statsPanel = createStatsPanel();
-        mainPanel.add(statsPanel);
-        mainPanel.add(Box.createVerticalStrut(20));
-        
-        // Overall Inventory Section
-        JPanel inventoryPanel = createInventoryPanel();
-        mainPanel.add(inventoryPanel);
-        
-        mainPanel.revalidate();
-        mainPanel.repaint();
+        mainPanel.getChildren().clear();
+        mainPanel.getChildren().add(createBestSellingPanel());
+        mainPanel.getChildren().add(createStatsPanel());
+        mainPanel.getChildren().add(createInventoryPanel());
     }
-    
-    private JPanel createBestSellingPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.setBackground(Color.WHITE);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250));
-        
-        JLabel titleLabel = new JLabel("Best selling items");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        panel.add(titleLabel, BorderLayout.NORTH);
-        
-        // Table
-        String[] columns = {"Product", "Product ID", "Remaining Quantity", "Price", "Availability"};
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-        
-        // Load products
-        List<Product> products = productDAO.getAllProducts();
-        int count = 0;
-        for (Product p : products) {
-            if (count >= 4) break;
-            model.addRow(new Object[]{
-                p.getProductName(),
-                p.getProductId(),
-                p.getStockQuantity(),
-                "₱" + String.format("%.2f", p.getSellingPrice()),
-                p.getAvailabilityStatus()
-            });
-            count++;
-        }
-        
-        JTable table = new JTable(model);
-        table.setRowHeight(30);
-        table.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
-        
-        JScrollPane scrollPane = new JScrollPane(table);
-        scrollPane.setPreferredSize(new Dimension(950, 180));
-        panel.add(scrollPane, BorderLayout.CENTER);
-        
+
+    private VBox createBestSellingPanel() {
+        VBox panel = new VBox(10);
+        panel.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1; -fx-border-radius: 5;");
+        Label titleLabel = new Label("Best selling items");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        panel.getChildren().add(titleLabel);
+
+        TableView<Product> table = new TableView<>();
+        ObservableList<Product> products = FXCollections.observableArrayList(productDAO.getAllProducts());
+        TableColumn<Product, String> nameCol = new TableColumn<>("Product");
+        nameCol.setCellValueFactory(new PropertyValueFactory<>("productName"));
+        TableColumn<Product, Integer> idCol = new TableColumn<>("Product ID");
+        idCol.setCellValueFactory(new PropertyValueFactory<>("productId"));
+        TableColumn<Product, Integer> qtyCol = new TableColumn<>("Remaining Quantity");
+        qtyCol.setCellValueFactory(new PropertyValueFactory<>("stockQuantity"));
+        TableColumn<Product, Double> priceCol = new TableColumn<>("Price");
+        priceCol.setCellValueFactory(new PropertyValueFactory<>("sellingPrice"));
+        TableColumn<Product, String> availCol = new TableColumn<>("Availability");
+        availCol.setCellValueFactory(new PropertyValueFactory<>("availabilityStatus"));
+        table.getColumns().addAll(List.of(nameCol, idCol, qtyCol, priceCol, availCol));
+        table.setItems(products);
+        table.setPrefHeight(180);
+        panel.getChildren().add(table);
         return panel;
     }
-    
-    private JPanel createStatsPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new FlowLayout(FlowLayout.LEFT, 20, 0));
-        panel.setBackground(Color.WHITE);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
-        
-        // Sales Card
+
+    private HBox createStatsPanel() {
+        HBox panel = new HBox(20);
+        panel.setStyle("-fx-background-color: white;");
+        panel.setPrefHeight(150);
         int salesCount = saleDAO.getLast7DaysSalesCount();
-        JPanel salesCard = createStatCard("Sales", String.valueOf(salesCount), 
-            "↑ 12% vs last month", new Color(100, 181, 246), true);
-        panel.add(salesCard);
-        
-        // Out of Stock Card
         int outOfStock = productDAO.getOutOfStockCount();
-        JPanel outOfStockCard = createStatCard("Out of stock", String.valueOf(outOfStock), 
-            "↑ 12% vs last month", Color.WHITE, false);
-        panel.add(outOfStockCard);
-        
-        // Requested Items Card
         int requestedItems = requestDAO.getRequestsCount();
-        JPanel requestedCard = createStatCard("Requested items", String.valueOf(requestedItems), 
-            "↑ 12% vs last month", Color.WHITE, false);
-        panel.add(requestedCard);
-        
+        panel.getChildren().add(createStatCard("Sales", String.valueOf(salesCount), Color.web("#64b5f6"), true));
+        panel.getChildren().add(createStatCard("Out of stock", String.valueOf(outOfStock), Color.WHITE, false));
+        panel.getChildren().add(createStatCard("Requested items", String.valueOf(requestedItems), Color.WHITE, false));
         return panel;
     }
-    
-    private JPanel createStatCard(String title, String value, String subtitle, Color bgColor, boolean isPrimary) {
-        JPanel card = new JPanel();
-        card.setPreferredSize(new Dimension(280, 120));
-        card.setBackground(bgColor);
-        card.setLayout(null);
-        card.setBorder(BorderFactory.createLineBorder(new Color(230, 230, 230)));
-        
-        Color textColor = isPrimary ? Color.WHITE : Color.DARK_GRAY;
-        
-        JLabel titleLabel = new JLabel(title);
-        titleLabel.setFont(new Font("Arial", Font.PLAIN, 14));
-        titleLabel.setForeground(textColor);
-        titleLabel.setBounds(20, 20, 200, 20);
-        card.add(titleLabel);
-        
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Arial", Font.BOLD, 32));
-        valueLabel.setForeground(textColor);
-        valueLabel.setBounds(20, 40, 200, 40);
-        card.add(valueLabel);
-        
-        JLabel subtitleLabel = new JLabel(subtitle);
-        subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 11));
-        subtitleLabel.setForeground(textColor);
-        subtitleLabel.setBounds(20, 85, 200, 20);
-        card.add(subtitleLabel);
-        
+
+    private VBox createStatCard(String title, String value, Color bgColor, boolean isPrimary) {
+        VBox card = new VBox(5);
+        card.setPrefSize(280, 120);
+        // use the provided bgColor (converted to hex) for background
+        card.setStyle("-fx-background-color: " + toHex(bgColor) + "; -fx-border-color: #e6e6e6; -fx-border-width: 1;");
+        Label titleLabel = new Label(title);
+        // choose text color based on isPrimary flag to keep contrast
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: " + (isPrimary ? "white" : "#333"));
+        Label valueLabel = new Label(value);
+        valueLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: " + (isPrimary ? "white" : "#333"));
+        card.getChildren().addAll(titleLabel, valueLabel);
         return card;
     }
-    
-    private JPanel createInventoryPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BorderLayout());
-        panel.setBackground(Color.WHITE);
-        panel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-        
-        JLabel titleLabel = new JLabel("Overall Inventory");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        panel.add(titleLabel, BorderLayout.NORTH);
-        
-        // Inventory stats
-        JPanel statsPanel = new JPanel();
-        statsPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 80, 20));
-        statsPanel.setBackground(Color.WHITE);
-        
+
+    private VBox createInventoryPanel() {
+        VBox panel = new VBox(10);
+        panel.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1; -fx-border-radius: 5;");
+        Label titleLabel = new Label("Overall Inventory");
+        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        panel.getChildren().add(titleLabel);
+
+        HBox statsPanel = new HBox(80);
+        statsPanel.setStyle("-fx-background-color: white;");
         List<Product> products = productDAO.getAllProducts();
         int totalProducts = products.size();
-        double totalRevenue = 0;
-        int topSelling = 0;
         int lowStocks = 0;
-        
         for (Product p : products) {
-            totalRevenue += p.getSellingPrice() * p.getStockQuantity();
             if (p.isLowStock()) lowStocks++;
         }
-        
-        statsPanel.add(createInventoryStat("Sales", "100", "Last 7 days", new Color(0, 123, 255)));
-        statsPanel.add(createInventoryStat("Total Products", String.valueOf(totalProducts), "Last 7 days", new Color(255, 152, 0)));
-        statsPanel.add(createInventoryStat("Top Selling", String.valueOf(topSelling), "Last 7 days", new Color(76, 175, 80)));
-        statsPanel.add(createInventoryStat("Low Stocks", String.valueOf(lowStocks), "Not in stock", new Color(244, 67, 54)));
-        
-        panel.add(statsPanel, BorderLayout.CENTER);
-        
+        Map<String, Integer> top = saleDAO.getTopSellingProducts(1, 30);
+        int topSelling = top.values().stream().findFirst().orElse(0);
+        statsPanel.getChildren().add(createInventoryStat("Sales (7d)", String.valueOf(saleDAO.getLast7DaysSalesCount()), "Last 7 days", Color.web("#007bff")));
+        statsPanel.getChildren().add(createInventoryStat("Total Products", String.valueOf(totalProducts), "All items", Color.web("#ff9800")));
+        statsPanel.getChildren().add(createInventoryStat("Top Selling (30d)", String.valueOf(topSelling), "Qty sold", Color.web("#4caf50")));
+        statsPanel.getChildren().add(createInventoryStat("Low Stocks", String.valueOf(lowStocks), "At/below threshold", Color.web("#f44336")));
+        panel.getChildren().add(statsPanel);
         return panel;
     }
-    
-    private JPanel createInventoryStat(String label, String value, String subtitle, Color color) {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Color.WHITE);
-        
-        JLabel labelLabel = new JLabel(label);
-        labelLabel.setFont(new Font("Arial", Font.PLAIN, 12));
-        labelLabel.setForeground(color);
-        labelLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel valueLabel = new JLabel(value);
-        valueLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        JLabel subtitleLabel = new JLabel(subtitle);
-        subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 10));
-        subtitleLabel.setForeground(Color.GRAY);
-        subtitleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        
-        panel.add(labelLabel);
-        panel.add(valueLabel);
-        panel.add(subtitleLabel);
-        
+
+    private VBox createInventoryStat(String label, String value, String subtitle, Color color) {
+        VBox panel = new VBox(5);
+        Label labelLabel = new Label(label);
+        labelLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: " + toHex(color) + ";");
+        Label valueLabel = new Label(value);
+        valueLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold;");
+        Label subtitleLabel = new Label(subtitle);
+        subtitleLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: gray;");
+        panel.getChildren().addAll(labelLabel, valueLabel, subtitleLabel);
         return panel;
+    }
+
+    private String toHex(Color color) {
+        return String.format("#%02x%02x%02x", (int)(color.getRed()*255), (int)(color.getGreen()*255), (int)(color.getBlue()*255));
+    }
+
+    static void main(String[] args) {
+        launch(args);
     }
 }
-

@@ -4,6 +4,7 @@ import config.DatabaseConfig;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import utils.Logger;
 
 /**
  * Database Connection Class
@@ -25,10 +26,10 @@ public class DatabaseConnection {
             System.out.println("Database connected successfully!");
         } catch (ClassNotFoundException e) {
             System.err.println("MySQL JDBC Driver not found!");
-            e.printStackTrace();
+            Logger.error("JDBC driver not found", e);
         } catch (SQLException e) {
             System.err.println("Connection failed!");
-            e.printStackTrace();
+            Logger.error("Database connection failed", e);
         }
     }
 
@@ -61,7 +62,7 @@ public class DatabaseConnection {
                 );
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to re-establish database connection", e);
         }
         return connection;
     }
@@ -76,8 +77,7 @@ public class DatabaseConnection {
                 System.out.println("Database connection closed.");
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Error closing database connection", e);
         }
     }
 }
-

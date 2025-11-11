@@ -1,311 +1,307 @@
+// JavaFX version of RequestForm
 package gui;
 
 import dao.ProductDAO;
 import dao.RequestDAO;
 import models.Product;
 import models.Request;
-import utils.SessionManager;
-import javax.swing.*;
-import javax.swing.table.*;
-import java.awt.*;
+import utils.ExcelExportUtils;
+import utils.PdfExportUtils;
+import utils.ExportUtils;
+import javafx.application.Application;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.layout.*;
+import javafx.stage.Stage;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import java.util.List;
+import javafx.stage.FileChooser;
+import java.io.File;
+import javafx.stage.Screen;
+import javafx.geometry.Rectangle2D;
 
-/**
- * Request Form
- * Displays and manages product restock requests
- */
-public class RequestForm extends JFrame {
+public class RequestForm extends Application {
     private RequestDAO requestDAO;
     private ProductDAO productDAO;
-    private JTable requestTable;
-    private DefaultTableModel tableModel;
-    private JPanel mainPanel;
+    private TableView<Request> requestTable;
+    private ObservableList<Request> tableData;
+    private ComboBox<String> statusFilter;
 
-    public RequestForm() {
+    @Override
+    public void start(Stage primaryStage) {
         requestDAO = new RequestDAO();
         productDAO = new ProductDAO();
-        initComponents();
-        loadRequests();
-    }
+        primaryStage.setTitle("IMS - Requests");
+        BorderPane container = new BorderPane();
+        container.setPadding(new Insets(10));
 
-    private void initComponents() {
-        setTitle("IMS - Requests");
-        setSize(1200, 700);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
+        VBox sidebar = NavigationPanel.createSidebar(primaryStage, "Request");
+        container.setLeft(sidebar);
+        // removed topBar because the navigation drawer provides the page heading
 
-        JPanel container = new JPanel(new BorderLayout());
+        VBox mainPanel = new VBox(10);
+        mainPanel.setPadding(new Insets(20));
+        mainPanel.setStyle("-fx-background-color: white;");
 
-        // Sidebar
-        JPanel sidebar = createSidebar();
-        container.add(sidebar, BorderLayout.WEST);
-
-        // Top Bar
-        JPanel topBar = createTopBar();
-        container.add(topBar, BorderLayout.NORTH);
-
-        // Main Content
-        mainPanel = new JPanel(new BorderLayout());
-        mainPanel.setBackground(Color.WHITE);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
-
-        createRequestTable();
-
-        container.add(mainPanel, BorderLayout.CENTER);
-        add(container);
-    }
-
-    private JPanel createSidebar() {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(200, 700));
-        sidebar.setBackground(new Color(240, 248, 255));
-        sidebar.setLayout(null);
-
-        JLabel logoLabel = new JLabel("IMS");
-        logoLabel.setFont(new Font("Arial", Font.BOLD, 20));
-        logoLabel.setForeground(new Color(26, 54, 93));
-        logoLabel.setBounds(20, 20, 50, 30);
-        sidebar.add(logoLabel);
-
-        JLabel logoText = new JLabel("Inventory System");
-        logoText.setFont(new Font("Arial", Font.PLAIN, 11));
-        logoText.setForeground(Color.GRAY);
-        logoText.setBounds(70, 23, 120, 25);
-        sidebar.add(logoText);
-
-        JButton dashboardBtn = createMenuButton("Dashboard", 80, false);
-        JButton itemsBtn = createMenuButton("Items", 130, false);
-        JButton requestBtn = createMenuButton("Request", 180, true);
-
-        sidebar.add(dashboardBtn);
-        sidebar.add(itemsBtn);
-        sidebar.add(requestBtn);
-
-        dashboardBtn.addActionListener(e -> {
-            this.dispose();
-            new DashboardForm().setVisible(true);
-        });
-
-        itemsBtn.addActionListener(e -> {
-            this.dispose();
-            new InventoryForm().setVisible(true);
-        });
-
-        return sidebar;
-    }
-
-    private JButton createMenuButton(String text, int y, boolean selected) {
-        JButton btn = new JButton(text);
-        btn.setBounds(10, y, 180, 40);
-        btn.setFont(new Font("Arial", Font.PLAIN, 14));
-        btn.setHorizontalAlignment(SwingConstants.LEFT);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        if (selected) {
-            btn.setBackground(new Color(0, 123, 255));
-            btn.setForeground(Color.WHITE);
-        } else {
-            btn.setBackground(new Color(240, 248, 255));
-            btn.setForeground(Color.DARK_GRAY);
+        HBox headerPanel = new HBox(10);
+        headerPanel.setAlignment(Pos.CENTER_LEFT);
+        Button requestedTab = new Button("Requested");
+        GuiUtils.stylePrimary(requestedTab);
+        headerPanel.getChildren().add(requestedTab);
+        Button addRequestButton = new Button("+ Add Request");
+        addRequestButton.setOnAction(this::addRequestAction);
+        GuiUtils.stylePrimary(addRequestButton);
+        // only show Add Request to admins
+        if (utils.SessionManager.isAdmin()) {
+            headerPanel.getChildren().add(addRequestButton);
         }
+        Button exportExcelBtn = new Button("Export Excel");
+        exportExcelBtn.setOnAction(this::exportRequestsExcelAction);
+        GuiUtils.styleSecondary(exportExcelBtn);
+        Button exportPdfBtn = new Button("Export PDF");
+        exportPdfBtn.setOnAction(this::exportRequestsPDFAction);
+        GuiUtils.styleSecondary(exportPdfBtn);
+        Button exportCsvBtn = new Button("Export CSV");
+        exportCsvBtn.setOnAction(this::exportRequestsCSVAction);
+        GuiUtils.styleSecondary(exportCsvBtn);
+        // show export buttons only to admins
+        if (utils.SessionManager.isAdmin()) {
+            headerPanel.getChildren().addAll(exportExcelBtn, exportPdfBtn, exportCsvBtn);
+        }
+        mainPanel.getChildren().add(headerPanel);
 
-        return btn;
-    }
+        requestTable = new TableView<>();
+        tableData = FXCollections.observableArrayList();
+        TableColumn<Request, Integer> prodIdCol = new TableColumn<>("Product ID");
+        prodIdCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("productId"));
+        TableColumn<Request, String> prodNameCol = new TableColumn<>("Product Name");
+        prodNameCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("productName"));
+        TableColumn<Request, Integer> qtyCol = new TableColumn<>("Requested Quantity");
+        qtyCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("requestedQuantity"));
+        TableColumn<Request, String> requestedByCol = new TableColumn<>("Requested By");
+        requestedByCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("requestedBy"));
+        TableColumn<Request, String> statusCol = new TableColumn<>("Status");
+        statusCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("status"));
+        TableColumn<Request, java.sql.Timestamp> dateCol = new TableColumn<>("Request Date");
+        dateCol.setCellValueFactory(new javafx.scene.control.cell.PropertyValueFactory<>("requestDate"));
+        requestTable.getColumns().addAll(java.util.List.of(prodIdCol, prodNameCol, qtyCol, requestedByCol, statusCol, dateCol));
+        TableColumn<Request, Void> actionCol = new TableColumn<>("Actions");
+        actionCol.setCellFactory(col -> {
+            // reference col to avoid unused-parameter warning
+            col.hashCode();
+            return new TableCell<>() {
+                private final Button approveBtn = new Button("Approve");
+                private final Button rejectBtn = new Button("Reject");
+                private final Button deleteBtn = new Button("Delete");
+                {
+                    approveBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Approved"); });
+                    rejectBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Rejected"); });
+                    deleteBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); deleteRequest(req); });
+                }
+                @Override
+                protected void updateItem(Void item, boolean empty) {
+                    super.updateItem(item, empty);
+                    if (empty) {
+                        setGraphic(null);
+                    } else {
+                        if (utils.SessionManager.isAdmin()) {
+                            HBox box = new HBox(5, approveBtn, rejectBtn, deleteBtn);
+                            setGraphic(box);
+                        } else {
+                            setGraphic(null);
+                        }
+                    }
+                }
+            };
+        });
+        requestTable.getColumns().add(actionCol);
+        requestTable.setItems(tableData);
+        requestTable.setPrefHeight(500);
+        mainPanel.getChildren().add(requestTable);
 
-    private JPanel createTopBar() {
-        JPanel topBar = new JPanel();
-        topBar.setPreferredSize(new Dimension(1000, 60));
-        topBar.setBackground(Color.WHITE);
-        topBar.setLayout(null);
-        topBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(230, 230, 230)));
+        statusFilter = new ComboBox<>();
+        statusFilter.getItems().addAll("All", "Pending", "Approved", "Rejected");
+        statusFilter.setValue("All");
+        statusFilter.setOnAction(this::statusFilterAction);
+        HBox filterPanel = new HBox(10, new Label("Filter by status:"), statusFilter);
+        filterPanel.setAlignment(Pos.CENTER_LEFT);
+        filterPanel.setPadding(new Insets(0, 0, 10, 0));
+        mainPanel.getChildren().add(filterPanel);
 
-        JLabel titleLabel = new JLabel("Request");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        titleLabel.setBounds(20, 15, 200, 30);
-        topBar.add(titleLabel);
+        container.setCenter(mainPanel);
+        loadRequests();
 
-        return topBar;
-    }
-
-    private void createRequestTable() {
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBackground(Color.WHITE);
-
-        // Header with tab
-        JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
-        headerPanel.setBackground(Color.WHITE);
-
-        JButton requestedTab = new JButton("Requested");
-        requestedTab.setBackground(new Color(0, 123, 255));
-        requestedTab.setForeground(Color.WHITE);
-        requestedTab.setFocusPainted(false);
-        requestedTab.setBorderPainted(false);
-        requestedTab.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        headerPanel.add(requestedTab);
-
-        headerPanel.add(Box.createHorizontalStrut(500));
-
-        JButton addRequestButton = new JButton("+ Add Request");
-        addRequestButton.setBackground(new Color(0, 123, 255));
-        addRequestButton.setForeground(Color.WHITE);
-        addRequestButton.setFocusPainted(false);
-        addRequestButton.setBorderPainted(false);
-        addRequestButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        addRequestButton.addActionListener(e -> showAddRequestDialog());
-        headerPanel.add(addRequestButton);
-
-        tablePanel.add(headerPanel, BorderLayout.NORTH);
-
-        // Table
-        String[] columns = {"Product ID", "Product Name", "Image", "Price",
-                           "Requested Quantity", "Requested By"};
-        tableModel = new DefaultTableModel(columns, 0) {
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        requestTable = new JTable(tableModel);
-        requestTable.setRowHeight(40);
-        requestTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 12));
-        requestTable.setFont(new Font("Arial", Font.PLAIN, 12));
-
-        JScrollPane scrollPane = new JScrollPane(requestTable);
-        tablePanel.add(scrollPane, BorderLayout.CENTER);
-
-        // Footer with pagination
-        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        footerPanel.setBackground(Color.WHITE);
-
-        JLabel pageLabel = new JLabel("Showing 1 to 10 out of 10 records");
-        footerPanel.add(pageLabel);
-
-        JButton prevButton = new JButton("<");
-        prevButton.setEnabled(false);
-        footerPanel.add(prevButton);
-
-        JButton pageButton = new JButton("1");
-        pageButton.setBackground(new Color(0, 123, 255));
-        pageButton.setForeground(Color.WHITE);
-        footerPanel.add(pageButton);
-
-        JButton nextButton = new JButton(">");
-        nextButton.setEnabled(false);
-        footerPanel.add(nextButton);
-
-        tablePanel.add(footerPanel, BorderLayout.SOUTH);
-
-        mainPanel.add(tablePanel);
+        Scene scene = new Scene(container, 1200, 700);
+        primaryStage.setScene(scene);
+        Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
+        primaryStage.setX(bounds.getMinX());
+        primaryStage.setY(bounds.getMinY());
+        primaryStage.setWidth(bounds.getWidth());
+        primaryStage.setHeight(bounds.getHeight());
+        primaryStage.setMaximized(true);
+        primaryStage.show();
     }
 
     private void loadRequests() {
-        tableModel.setRowCount(0);
-        List<Request> requests = requestDAO.getPendingRequests();
-
-        for (Request r : requests) {
-            Product product = productDAO.getProductById(r.getProductId());
-            Object[] row = {
-                String.format("%02d", r.getProductId()),
-                r.getProductName(),
-                "[Image]", // Placeholder for image
-                product != null ? "₱" + String.format("%.2f", product.getSellingPrice()) : "N/A",
-                r.getRequestedQuantity() + " pcs",
-                r.getRequestedBy()
-            };
-            tableModel.addRow(row);
+        tableData.clear();
+        List<Request> requests;
+        String filter = statusFilter.getValue();
+        if (filter.equals("All")) {
+            requests = requestDAO.getAllRequests();
+        } else if (filter.equals("Pending")) {
+            requests = requestDAO.getPendingRequests();
+        } else {
+            requests = requestDAO.getAllRequests();
+            requests.removeIf(r -> !r.getStatus().equals(filter));
         }
+        tableData.addAll(requests);
     }
 
     private void showAddRequestDialog() {
-        JDialog dialog = new JDialog(this, "Add New Request", true);
-        dialog.setSize(400, 400);
-        dialog.setLocationRelativeTo(this);
-        dialog.setLayout(null);
-
-        JLabel titleLabel = new JLabel("Add New Request");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        titleLabel.setBounds(20, 20, 200, 25);
-        dialog.add(titleLabel);
-
-        // Product selection
-        JLabel productLabel = new JLabel("Select Product:");
-        productLabel.setBounds(20, 60, 150, 25);
-        dialog.add(productLabel);
-
-        List<Product> products = productDAO.getAllProducts();
-        JComboBox<String> productCombo = new JComboBox<>();
-        for (Product p : products) {
-            productCombo.addItem(p.getProductId() + " - " + p.getProductName());
-        }
-        productCombo.setBounds(20, 85, 350, 30);
-        dialog.add(productCombo);
-
-        // Quantity
-        JLabel qtyLabel = new JLabel("Requested Quantity:");
-        qtyLabel.setBounds(20, 125, 150, 25);
-        dialog.add(qtyLabel);
-
-        JTextField qtyField = new JTextField();
-        qtyField.setBounds(20, 150, 350, 30);
-        dialog.add(qtyField);
-
-        // Requested By
-        JLabel requestedByLabel = new JLabel("Requested By:");
-        requestedByLabel.setBounds(20, 190, 150, 25);
-        dialog.add(requestedByLabel);
-
-        JTextField requestedByField = new JTextField(
-            SessionManager.getCurrentUser() != null ?
-            SessionManager.getCurrentUser().getFullName() : "User");
-        requestedByField.setBounds(20, 215, 350, 30);
-        dialog.add(requestedByField);
-
-        // Buttons
-        JButton saveButton = new JButton("Submit Request");
-        saveButton.setBounds(20, 280, 165, 35);
-        saveButton.setBackground(new Color(0, 123, 255));
-        saveButton.setForeground(Color.WHITE);
-        saveButton.setFocusPainted(false);
-        saveButton.setBorderPainted(false);
-        saveButton.addActionListener(e -> {
-            try {
-                String selected = (String) productCombo.getSelectedItem();
-                int productId = Integer.parseInt(selected.split(" - ")[0]);
-                Product product = productDAO.getProductById(productId);
-
-                Request request = new Request();
-                request.setProductId(productId);
-                request.setProductName(product.getProductName());
-                request.setRequestedQuantity(Integer.parseInt(qtyField.getText()));
-                request.setRequestedBy(requestedByField.getText());
-                request.setStatus("Pending");
-
-                if (requestDAO.createRequest(request)) {
-                    JOptionPane.showMessageDialog(dialog, "Request submitted successfully!");
-                    loadRequests();
-                    dialog.dispose();
-                } else {
-                    JOptionPane.showMessageDialog(dialog, "Failed to submit request!",
-                        "Error", JOptionPane.ERROR_MESSAGE);
+        Dialog<Request> dialog = new Dialog<>();
+        dialog.setTitle("Add Request");
+        dialog.setHeaderText("Fill in request details");
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(20));
+        ComboBox<Product> prodCombo = new ComboBox<>();
+        prodCombo.setPromptText("Select Product");
+        prodCombo.setItems(FXCollections.observableArrayList(productDAO.getAllProducts()));
+        TextField qty = new TextField();
+        qty.setPromptText("Requested Quantity");
+        TextField requestedBy = new TextField();
+        requestedBy.setPromptText("Requested By");
+        grid.add(new Label("Product:"), 0, 0);
+        grid.add(prodCombo, 1, 0);
+        grid.add(new Label("Requested Quantity:"), 0, 1);
+        grid.add(qty, 1, 1);
+        grid.add(new Label("Requested By:"), 0, 2);
+        grid.add(requestedBy, 1, 2);
+        dialog.getDialogPane().setContent(grid);
+        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
+        dialog.setResultConverter(dialogButton -> {
+            if (dialogButton == saveButtonType) {
+                try {
+                    Product selected = prodCombo.getValue();
+                    if (selected == null) throw new Exception("Select a product.");
+                    int quantity = Integer.parseInt(qty.getText());
+                    return new Request(
+                        selected.getProductId(),
+                        selected.getProductName(),
+                        quantity,
+                        requestedBy.getText()
+                    );
+                } catch (Exception ex) {
+                    showAlert("Error: " + ex.getMessage(), Alert.AlertType.ERROR);
                 }
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(dialog, "Invalid input: " + ex.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
+            }
+            return null;
+        });
+        dialog.showAndWait().ifPresent(request -> {
+            try {
+                if (requestDAO.createRequest(request)) {
+                    showAlert("Request added successfully!", Alert.AlertType.INFORMATION);
+                    loadRequests();
+                } else {
+                    showAlert("Failed to add request!", Alert.AlertType.ERROR);
+                }
+            } catch (Exception e) {
+                showAlert("Error: " + e.getMessage(), Alert.AlertType.ERROR);
             }
         });
-        dialog.add(saveButton);
+    }
 
-        JButton cancelButton = new JButton("Cancel");
-        cancelButton.setBounds(205, 280, 165, 35);
-        cancelButton.setBackground(Color.LIGHT_GRAY);
-        cancelButton.setFocusPainted(false);
-        cancelButton.setBorderPainted(false);
-        cancelButton.addActionListener(e -> dialog.dispose());
-        dialog.add(cancelButton);
+    private void updateRequestStatus(Request req, String status) {
+        if (requestDAO.updateRequestStatus(req.getRequestId(), status)) {
+            showAlert("Request status updated to " + status, Alert.AlertType.INFORMATION);
+            loadRequests();
+        } else {
+            showAlert("Failed to update request status.", Alert.AlertType.ERROR);
+        }
+    }
 
-        dialog.setVisible(true);
+    private void deleteRequest(Request req) {
+        if (requestDAO.deleteRequest(req.getRequestId())) {
+            showAlert("Request deleted.", Alert.AlertType.INFORMATION);
+            loadRequests();
+        } else {
+            showAlert("Failed to delete request.", Alert.AlertType.ERROR);
+        }
+    }
+
+    private void showAlert(String title, Alert.AlertType type) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(title);
+        alert.showAndWait();
+    }
+
+    private void exportRequestsExcel() {
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialFileName("requests.xls");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel Files", "*.xls", "*.xlsx"));
+        File file = chooser.showSaveDialog(requestTable.getScene().getWindow());
+        if (file != null) {
+            try {
+                ExcelExportUtils.exportRequestsToExcel(requestDAO.getAllRequests(), ensureExtension(file, ".xls"));
+                showAlert("Exported successfully.", Alert.AlertType.INFORMATION);
+            } catch (Exception ex) {
+                showAlert("Export failed: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
+        }
+    }
+
+    private void exportRequestsPDF() {
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialFileName("requests.pdf");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+        File file = chooser.showSaveDialog(requestTable.getScene().getWindow());
+        if (file != null) {
+            try {
+                PdfExportUtils.exportRequestsToPDF(requestDAO.getAllRequests(), ensureExtension(file, ".pdf"));
+                showAlert("Exported to PDF successfully.", Alert.AlertType.INFORMATION);
+            } catch (Exception ex) {
+                showAlert("Export to PDF failed: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
+        }
+    }
+
+    private void exportRequestsCSV() {
+        FileChooser chooser = new FileChooser();
+        chooser.setInitialFileName("requests.csv");
+        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        File file = chooser.showSaveDialog(requestTable.getScene().getWindow());
+        if (file != null) {
+            try {
+                ExportUtils.exportRequestsToCSV(requestDAO.getAllRequests(), ensureExtension(file, ".csv"));
+                showAlert("Exported to CSV successfully.", Alert.AlertType.INFORMATION);
+            } catch (Exception ex) {
+                showAlert("Export to CSV failed: " + ex.getMessage(), Alert.AlertType.ERROR);
+            }
+        }
+    }
+
+    private File ensureExtension(File file, String ext) {
+        if (!file.getName().toLowerCase().endsWith(ext)) {
+            return new File(file.getParent(), file.getName() + ext);
+        }
+        return file;
+    }
+
+    // action handlers to avoid unused-lambda warnings
+    private void addRequestAction(javafx.event.ActionEvent e) { showAddRequestDialog(); }
+    private void exportRequestsExcelAction(javafx.event.ActionEvent e) { exportRequestsExcel(); }
+    private void exportRequestsPDFAction(javafx.event.ActionEvent e) { exportRequestsPDF(); }
+    private void exportRequestsCSVAction(javafx.event.ActionEvent e) { exportRequestsCSV(); }
+    private void statusFilterAction(javafx.event.ActionEvent e) { loadRequests(); }
+
+    static void main(String[] args) {
+        launch(args);
     }
 }
-

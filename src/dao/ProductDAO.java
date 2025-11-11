@@ -5,6 +5,7 @@ import database.DatabaseConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import utils.Logger;
 
 /**
  * Product Data Access Object
@@ -36,7 +37,7 @@ public class ProductDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to create product: " + product.getProductName(), e);
         }
         return false;
     }
@@ -55,7 +56,7 @@ public class ProductDAO {
                 return extractProductFromResultSet(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get product by id: " + productId, e);
         }
         return null;
     }
@@ -74,7 +75,7 @@ public class ProductDAO {
                 products.add(extractProductFromResultSet(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get all products", e);
         }
         return products;
     }
@@ -100,7 +101,7 @@ public class ProductDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to update product: " + product.getProductId(), e);
         }
         return false;
     }
@@ -117,7 +118,7 @@ public class ProductDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to delete product: " + productId, e);
         }
         return false;
     }
@@ -137,7 +138,7 @@ public class ProductDAO {
                 products.add(extractProductFromResultSet(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to search products: " + searchTerm, e);
         }
         return products;
     }
@@ -156,7 +157,7 @@ public class ProductDAO {
                 products.add(extractProductFromResultSet(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get low stock products", e);
         }
         return products;
     }
@@ -173,7 +174,7 @@ public class ProductDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get out of stock count", e);
         }
         return 0;
     }
@@ -191,7 +192,7 @@ public class ProductDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to update stock for product: " + productId, e);
         }
         return false;
     }
@@ -214,4 +215,3 @@ public class ProductDAO {
         return product;
     }
 }
-

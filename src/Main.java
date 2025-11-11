@@ -1,7 +1,5 @@
 import database.DatabaseMigration;
-
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import gui.LoginForm;
 
 /**
  * Main Class
@@ -29,17 +27,7 @@ public class Main {
         System.out.println("Initializing database...");
         DatabaseMigration.runMigrations();
 
-        // Set system look and feel
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        // Launch the login form
-        SwingUtilities.invokeLater(() -> {
-            LoginForm loginForm = new LoginForm();
-            loginForm.setVisible(true);
-        });
+        // Launch the JavaFX login form
+        LoginForm.main(args);
     }
 }

@@ -1,10 +1,13 @@
 package database;
 
 import config.DatabaseConfig;
+import utils.PasswordUtils;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.sql.SQLException;
+import java.sql.PreparedStatement;
+import utils.Logger;
 
 /**
  * Database Migration Class
@@ -33,7 +36,7 @@ public class DatabaseMigration {
             conn.close();
         } catch (SQLException e) {
             System.err.println("Error creating database!");
-            e.printStackTrace();
+            Logger.error("Error creating database", e);
         }
     }
 
@@ -111,12 +114,12 @@ public class DatabaseMigration {
             conn.close();
         } catch (SQLException e) {
             System.err.println("Error creating tables!");
-            e.printStackTrace();
+            Logger.error("Error creating tables", e);
         }
     }
 
     /**
-     * Insert default admin user
+     * Insert default admin user (with hashed passwords)
      */
     private static void insertDefaultData() {
         try {
@@ -125,27 +128,51 @@ public class DatabaseMigration {
                 DatabaseConfig.DB_USER,
                 DatabaseConfig.DB_PASSWORD
             );
-            Statement stmt = conn.createStatement();
 
-            // Insert default admin (password: admin123)
-            String insertAdmin = "INSERT IGNORE INTO users (username, password, full_name, role) " +
-                "VALUES ('admin', 'admin123', 'System Administrator', 'Admin')";
-            stmt.executeUpdate(insertAdmin);
+            // Check if admin exists
+            String checkSql = "SELECT COUNT(*) FROM users WHERE username = ?";
+            try (PreparedStatement checkStmt = conn.prepareStatement(checkSql)) {
+                // Admin
+                checkStmt.setString(1, "admin");
+                var rs = checkStmt.executeQuery();
+                boolean adminExists = false;
+                if (rs.next()) adminExists = rs.getInt(1) > 0;
 
-            // Insert sample staff user (password: staff123)
-            String insertStaff = "INSERT IGNORE INTO users (username, password, full_name, role) " +
-                "VALUES ('staff', 'staff123', 'Kael V.', 'Staff')";
-            stmt.executeUpdate(insertStaff);
+                // Staff
+                checkStmt.setString(1, "staff");
+                var rs2 = checkStmt.executeQuery();
+                boolean staffExists = false;
+                if (rs2.next()) staffExists = rs2.getInt(1) > 0;
 
-            System.out.println("Default users created successfully.");
-            System.out.println("Admin - Username: admin, Password: admin123");
-            System.out.println("Staff - Username: staff, Password: staff123");
+                if (!adminExists) {
+                    String insert = "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement pstmt = conn.prepareStatement(insert)) {
+                        pstmt.setString(1, "admin");
+                        pstmt.setString(2, PasswordUtils.hashPassword("admin123"));
+                        pstmt.setString(3, "System Administrator");
+                        pstmt.setString(4, "Admin");
+                        pstmt.executeUpdate();
+                        System.out.println("Inserted default admin (username: admin / password: admin123)");
+                    }
+                }
 
-            stmt.close();
+                if (!staffExists) {
+                    String insert = "INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)";
+                    try (PreparedStatement pstmt = conn.prepareStatement(insert)) {
+                        pstmt.setString(1, "staff");
+                        pstmt.setString(2, PasswordUtils.hashPassword("staff123"));
+                        pstmt.setString(3, "Kael V.");
+                        pstmt.setString(4, "Staff");
+                        pstmt.executeUpdate();
+                        System.out.println("Inserted default staff (username: staff / password: staff123)");
+                    }
+                }
+            }
+
             conn.close();
         } catch (SQLException e) {
             System.err.println("Error inserting default data!");
-            e.printStackTrace();
+            Logger.error("Error inserting default data", e);
         }
     }
 
@@ -162,7 +189,7 @@ public class DatabaseMigration {
             System.out.println("=== Database Migration Completed Successfully ===");
         } catch (ClassNotFoundException e) {
             System.err.println("MySQL JDBC Driver not found!");
-            e.printStackTrace();
+            Logger.error("JDBC driver not found during migration", e);
         }
     }
 
@@ -173,4 +200,3 @@ public class DatabaseMigration {
         runMigrations();
     }
 }
-

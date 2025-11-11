@@ -5,6 +5,7 @@ import database.DatabaseConnection;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import utils.Logger;
 
 /**
  * Request Data Access Object
@@ -34,7 +35,7 @@ public class RequestDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to create request for product id: " + request.getProductId(), e);
         }
         return false;
     }
@@ -53,7 +54,7 @@ public class RequestDAO {
                 requests.add(extractRequestFromResultSet(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get all requests", e);
         }
         return requests;
     }
@@ -72,7 +73,7 @@ public class RequestDAO {
                 requests.add(extractRequestFromResultSet(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to get pending requests", e);
         }
         return requests;
     }
@@ -90,7 +91,7 @@ public class RequestDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to update request status id: " + requestId, e);
         }
         return false;
     }
@@ -107,7 +108,7 @@ public class RequestDAO {
             int rowsAffected = pstmt.executeUpdate();
             return rowsAffected > 0;
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to delete request id: " + requestId, e);
         }
         return false;
     }
@@ -124,7 +125,7 @@ public class RequestDAO {
                 return rs.getInt(1);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.error("Failed to count pending requests", e);
         }
         return 0;
     }
@@ -144,4 +145,3 @@ public class RequestDAO {
         return request;
     }
 }
-
