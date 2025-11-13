@@ -11,7 +11,10 @@ public class Request {
     private int productId;
     private String productName;
     private int requestedQuantity;
-    private String requestedBy;
+    // store the requesting user's id (foreign key to users.user_id)
+    private Integer requestedByUserId; // nullable
+    // friendly display name for the requester (populated when fetching via JOIN)
+    private String requestedByName;
     private String status; // "Pending", "Approved", "Rejected"
     private Timestamp requestDate;
 
@@ -19,11 +22,21 @@ public class Request {
     public Request() {
     }
 
+    // For creating a request when you have a user id
+    public Request(int productId, String productName, int requestedQuantity, int requestedByUserId) {
+        this.productId = productId;
+        this.productName = productName;
+        this.requestedQuantity = requestedQuantity;
+        this.requestedByUserId = requestedByUserId;
+        this.status = "Pending";
+    }
+
+    // Legacy constructor kept for backwards compatibility (accepts name)
     public Request(int productId, String productName, int requestedQuantity, String requestedBy) {
         this.productId = productId;
         this.productName = productName;
         this.requestedQuantity = requestedQuantity;
-        this.requestedBy = requestedBy;
+        this.requestedByName = requestedBy;
         this.status = "Pending";
     }
 
@@ -60,12 +73,20 @@ public class Request {
         this.requestedQuantity = requestedQuantity;
     }
 
-    public String getRequestedBy() {
-        return requestedBy;
+    public Integer getRequestedByUserId() {
+        return requestedByUserId;
     }
 
-    public void setRequestedBy(String requestedBy) {
-        this.requestedBy = requestedBy;
+    public void setRequestedByUserId(Integer requestedByUserId) {
+        this.requestedByUserId = requestedByUserId;
+    }
+
+    public String getRequestedByName() {
+        return requestedByName;
+    }
+
+    public void setRequestedByName(String requestedByName) {
+        this.requestedByName = requestedByName;
     }
 
     public String getStatus() {
@@ -84,6 +105,23 @@ public class Request {
         this.requestDate = requestDate;
     }
 
+    /**
+     * Backwards-compatible accessor used by existing UI/export code.
+     * Returns the requester's display name if available, otherwise an empty string or the user id.
+     */
+    public String getRequestedBy() {
+        if (requestedByName != null && !requestedByName.isEmpty()) return requestedByName;
+        if (requestedByUserId != null) return String.valueOf(requestedByUserId);
+        return "";
+    }
+
+    /**
+     * Legacy setter left for compatibility (stores in requestedByName).
+     */
+    public void setRequestedBy(String requestedBy) {
+        this.requestedByName = requestedBy;
+    }
+
     @Override
     public String toString() {
         return "Request{" +
@@ -94,4 +132,3 @@ public class Request {
                 '}';
     }
 }
-

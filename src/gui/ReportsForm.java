@@ -26,11 +26,16 @@ public class ReportsForm extends Application {
     private TableView<Sale> reportTable;
     private ObservableList<Sale> reportData;
     private Label totalLabel;
+    private Label totalItemsLabel; // NEW: show total items sold
     private Label topSellingLabel;
     private Label statusLabel; // shows when no data for selected range
     // make rangeCombo a field so action handlers can access its current value
     private ComboBox<String> rangeCombo;
-    private boolean autoBroadened = false;
+
+    // Promote these summary card value labels to fields so other methods can update them
+    private Label totalCardValueLabel;
+    private Label itemsCardValueLabel;
+    private Label topCardValueLabel;
 
     @SuppressWarnings("deprecation")
     @Override
@@ -69,9 +74,11 @@ public class ReportsForm extends Application {
         exportExcelBtn.setPrefWidth(100);
 
         totalLabel = new Label("Total: 0.00");
-        totalLabel.setStyle("-fx-font-weight: bold;");
+        totalLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
+        totalItemsLabel = new Label("Items: 0");
+        totalItemsLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
         topSellingLabel = new Label("Top selling: -");
-        topSellingLabel.setStyle("-fx-font-weight: bold;");
+        topSellingLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
         // status label shown when table is empty for the selected range
         statusLabel = new Label("");
@@ -88,12 +95,7 @@ public class ReportsForm extends Application {
         refreshBtn.setOnAction(this::refreshAction);
         exportBox.getChildren().add(refreshBtn);
 
-        // Totals on the right
-        HBox totalsBox = new HBox(8);
-        totalsBox.setAlignment(Pos.CENTER_RIGHT);
-        totalsBox.getChildren().addAll(totalLabel, topSellingLabel);
-
-        // Spacer to push totals to the right
+        // Spacer to push other toolbar items to the right
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
@@ -102,11 +104,48 @@ public class ReportsForm extends Application {
 
         // Assemble controls; exportBox only visible for admins
         if (utils.SessionManager.isAdmin()) {
-            controls.getChildren().addAll(rangeLabel, rangeCombo, exportBox, spacer, totalsBox);
+            controls.getChildren().addAll(rangeLabel, rangeCombo, exportBox, spacer);
         } else {
-            controls.getChildren().addAll(rangeLabel, rangeCombo, spacer, totalsBox);
+            controls.getChildren().addAll(rangeLabel, rangeCombo, spacer);
         }
         mainPanel.getChildren().add(controls);
+
+        // SUMMARY CARDS: visually prominent totals shown under the controls
+        HBox summaryRow = new HBox(12);
+        summaryRow.setAlignment(Pos.CENTER_LEFT);
+        summaryRow.setPadding(new Insets(8, 0, 12, 0));
+
+        String cardStyle = "-fx-background-color: linear-gradient(#fbfdff, #eef6ff); -fx-padding:12; -fx-border-radius:8; -fx-background-radius:8; -fx-border-color:#d9eaf7; -fx-border-width:1;";
+
+        VBox totalCard = new VBox(6);
+        totalCard.setPrefWidth(260);
+        totalCard.setStyle(cardStyle);
+        Label totalCardTitle = new Label("Total Revenue");
+        totalCardTitle.setStyle("-fx-font-size:12px; -fx-text-fill:#333;");
+        totalCardValueLabel = new Label("0.00");
+        totalCardValueLabel.setStyle("-fx-font-size:20px; -fx-font-weight:bold; -fx-text-fill:#0b4f83;");
+        totalCard.getChildren().addAll(totalCardTitle, totalCardValueLabel);
+
+        VBox itemsCard = new VBox(6);
+        itemsCard.setPrefWidth(200);
+        itemsCard.setStyle(cardStyle);
+        Label itemsCardTitle = new Label("Total Items Sold");
+        itemsCardTitle.setStyle("-fx-font-size:12px; -fx-text-fill:#333;");
+        itemsCardValueLabel = new Label("0");
+        itemsCardValueLabel.setStyle("-fx-font-size:20px; -fx-font-weight:bold; -fx-text-fill:#0b4f83;");
+        itemsCard.getChildren().addAll(itemsCardTitle, itemsCardValueLabel);
+
+        VBox topCard = new VBox(6);
+        topCard.setPrefWidth(360);
+        topCard.setStyle(cardStyle);
+        Label topCardTitle = new Label("Top Selling Product");
+        topCardTitle.setStyle("-fx-font-size:12px; -fx-text-fill:#333;");
+        topCardValueLabel = new Label("-");
+        topCardValueLabel.setStyle("-fx-font-size:18px; -fx-font-weight:bold; -fx-text-fill:#c85d00;");
+        topCard.getChildren().addAll(topCardTitle, topCardValueLabel);
+
+        summaryRow.getChildren().addAll(totalCard, itemsCard, topCard);
+        mainPanel.getChildren().add(summaryRow);
 
         reportTable = new TableView<>();
         reportData = FXCollections.observableArrayList();
@@ -135,7 +174,7 @@ public class ReportsForm extends Application {
 
         container.setCenter(mainPanel);
         // default to weekly so users see data immediately
-        loadRange("Weekly");
+        loadRange("Weekly", totalCardValueLabel, itemsCardValueLabel, topCardValueLabel);
 
         Scene scene = new Scene(container, 900, 650);
         primaryStage.setScene(scene);
@@ -148,7 +187,8 @@ public class ReportsForm extends Application {
         primaryStage.show();
     }
 
-    private void loadRange(String type) {
+    // Updated loadRange to accept label references for the summary cards
+    private void loadRange(String type, Label totalCardValue, Label itemsCardValue, Label topCardValue) {
         reportData.clear();
         LocalDate now = LocalDate.now();
         LocalDate start;
@@ -158,16 +198,30 @@ public class ReportsForm extends Application {
             default -> now;
         };
         List<Sale> sales = saleDAO.getSalesByDateRange(Date.valueOf(start), Date.valueOf(now));
+
+        // Debug logging to help diagnose empty report ranges
+        try {
+            utils.Logger.info("Reports.loadRange: type=" + type + " start=" + start + " end=" + now + " -> fetched=" + (sales == null ? 0 : sales.size()));
+        } catch (Exception ignored) {}
+
         double total = 0;
+        int totalItems = 0;
         for (Sale s : sales) {
             reportData.add(s);
             total += s.getTotalPrice();
+            totalItems += s.getQuantity();
         }
         totalLabel.setText("Total: " + String.format("%.2f", total));
+        totalCardValue.setText(String.format("%.2f", total));
+        totalItemsLabel.setText("Items: " + totalItems);
+        itemsCardValue.setText(String.valueOf(totalItems));
+
         // show status if no data; also provide DB diagnostics when empty
+        List<Sale> all = saleDAO.getAllSales();
+        try {
+            utils.Logger.info("Reports.loadRange: DB total sales=" + (all == null ? 0 : all.size()));
+        } catch (Exception ignored) {}
         if (reportData.isEmpty()) {
-            // try to provide more info about DB contents
-            List<Sale> all = saleDAO.getAllSales();
             if (all.isEmpty()) {
                 statusLabel.setText("No sales found for the selected range — database contains zero sales.");
             } else {
@@ -181,25 +235,26 @@ public class ReportsForm extends Application {
                     }
                 }
                 String info = "No sales in selected range. DB total: " + all.size();
-                if (min != null && max != null) info += ", earliest: " + min + ", latest: " + max;
+                info += ", earliest: " + (min == null ? "-" : min) + ", latest: " + (max == null ? "-" : max);
                 statusLabel.setText(info);
             }
             statusLabel.setVisible(true);
-            // if DB has data but current selection is empty, try broadening once (Weekly->Monthly)
-            if (!all.isEmpty() && !autoBroadened) {
-                autoBroadened = true;
-                if (!"Monthly".equals(type)) {
-                    statusLabel.setText(statusLabel.getText() + "  Auto-switching to Monthly to show data...");
-                    rangeCombo.setValue("Monthly");
-                    loadRange("Monthly");
-                }
-            }
+            // if DB has data but current selection is empty, do not change the user's selection programmatically
+            // We keep the diagnostic message for clarity but avoid auto-switching the range to prevent redundant UI behavior.
         } else {
             statusLabel.setVisible(false);
         }
-        Map<String,Integer> top = saleDAO.getTopSellingProducts(1, type.equals("Daily")?1: type.equals("Weekly")?7:30);
-        String txt = top.isEmpty()?"-" : top.entrySet().iterator().next().getKey()+" ("+top.entrySet().iterator().next().getValue()+")";
+        int days = type.equals("Daily") ? 1 : type.equals("Weekly") ? 7 : 30;
+        Map<String,Integer> top = saleDAO.getTopSellingProducts(1, days);
+        String txt = top.isEmpty() ? "-" : top.entrySet().iterator().next().getKey() + " (" + top.entrySet().iterator().next().getValue() + ")";
         topSellingLabel.setText("Top selling: " + txt);
+        topCardValue.setText(txt);
+    }
+
+    // Overloaded wrapper used by action handlers (keeps compat)
+    private void loadRange(String type) {
+        // Call the richer loader using our field references so the UI cards update correctly
+        loadRange(type, totalCardValueLabel, itemsCardValueLabel, topCardValueLabel);
     }
 
     private void exportCSV() {
@@ -274,13 +329,13 @@ public class ReportsForm extends Application {
     private void exportCSVAction(javafx.event.ActionEvent e) { exportCSV(); }
     private void exportPDFAction(javafx.event.ActionEvent e) { exportPDFBox(); }
     private void exportExcelAction(javafx.event.ActionEvent e) {
-        // use the current selection in the rangeCombo
+        // use the current selection in the rangeCombo to export
         if (rangeCombo != null && rangeCombo.getValue() != null) {
             exportExcel(rangeCombo.getValue());
         } else {
             exportExcel("Daily");
         }
-    }
+     }
 
     private void rangeComboAction(javafx.event.ActionEvent e) {
         if (rangeCombo != null && rangeCombo.getValue() != null) {
@@ -288,6 +343,7 @@ public class ReportsForm extends Application {
         }
     }
 
+    // Entrypoint for testing the form independently
     static void main(String[] args) {
         launch(args);
     }
@@ -295,7 +351,7 @@ public class ReportsForm extends Application {
     // debug helper to show DB counts and date span in the UI status label
     private void debugSales() {
         List<Sale> all = saleDAO.getAllSales();
-        if (all.isEmpty()) {
+        if (all == null || all.isEmpty()) {
             statusLabel.setText("Database contains zero sales.");
             statusLabel.setVisible(true);
             return;
@@ -308,8 +364,7 @@ public class ReportsForm extends Application {
                 if (max == null || t.after(max)) max = t;
             }
         }
-        String info = "DB total sales: " + all.size();
-        if (min != null && max != null) info += ", earliest: " + min + ", latest: " + max;
+        String info = "DB total sales: " + all.size() + ", earliest: " + (min == null ? "-" : min) + ", latest: " + (max == null ? "-" : max);
         statusLabel.setText(info);
         statusLabel.setVisible(true);
     }

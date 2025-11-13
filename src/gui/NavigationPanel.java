@@ -8,6 +8,9 @@ import javafx.scene.control.Label;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.stage.Stage;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import java.io.InputStream;
 
 public class NavigationPanel {
     public static VBox createSidebar(Stage owner, String active) {
@@ -17,11 +20,38 @@ public class NavigationPanel {
         sidebar.setPadding(new Insets(20));
         sidebar.setAlignment(Pos.TOP_LEFT);
 
-        Label logoLabel = new Label("IMS");
-        logoLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a365d;");
-        Label logoText = new Label("Inventory System");
-        logoText.setStyle("-fx-font-size: 11px; -fx-text-fill: gray;");
-        sidebar.getChildren().addAll(logoLabel, logoText);
+        // Try to load the project's logo from assets and show it at the top of the sidebar
+        ImageView logoView = new ImageView();
+        // use GuiUtils to set consistent logo sizing
+        gui.GuiUtils.styleSidebarLogo(logoView);
+        try {
+            InputStream is = NavigationPanel.class.getResourceAsStream("/assets/IMS-Logo.jpg");
+            if (is == null) is = NavigationPanel.class.getResourceAsStream("/assets/IMS-Logo.png");
+            if (is != null) {
+                Image img = new Image(is);
+                logoView.setImage(img);
+            }
+        } catch (Exception ignored) {}
+
+        Label logoText = new Label("");
+        gui.GuiUtils.styleSidebarSubtitle(logoText);
+        // make subtitle slightly bolder, larger and allow wrapping so it doesn't truncate
+        logoText.setStyle(logoText.getStyle() + " -fx-font-weight: bold; -fx-font-size: 13px;");
+        logoText.setWrapText(true);
+        logoText.setMaxWidth(160);
+
+        if (logoView.getImage() != null) {
+            VBox logoBox = new VBox(6, logoView, logoText);
+            logoBox.setAlignment(Pos.CENTER_LEFT);
+            logoBox.setPadding(new Insets(0, 0, 12, 0));
+            // Make the logo clickable to go to Dashboard for quicker navigation
+            logoBox.setOnMouseClicked(e -> { e.consume(); openForm(owner, "Dashboard"); });
+            sidebar.getChildren().add(logoBox);
+        } else {
+            Label logoLabel = new Label("IMS");
+            logoLabel.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #1a365d;");
+            sidebar.getChildren().addAll(logoLabel, logoText);
+        }
 
         Button dashboardBtn = makeMenuButton("Dashboard", "Dashboard".equalsIgnoreCase(active));
         Button itemsBtn = makeMenuButton("Items", "Items".equalsIgnoreCase(active));
@@ -39,13 +69,14 @@ public class NavigationPanel {
         }
         sidebar.getChildren().addAll(logoutBtn);
 
-        dashboardBtn.setOnAction(e -> openForm(owner, "Dashboard"));
-        itemsBtn.setOnAction(e -> openForm(owner, "Items"));
-        requestBtn.setOnAction(e -> openForm(owner, "Request"));
-        salesBtn.setOnAction(e -> openForm(owner, "Sales"));
-        usersBtn.setOnAction(e -> openForm(owner, "Users"));
-        reportsBtn.setOnAction(e -> openForm(owner, "Reports"));
+        dashboardBtn.setOnAction(e -> { e.consume(); openForm(owner, "Dashboard"); });
+        itemsBtn.setOnAction(e -> { e.consume(); openForm(owner, "Items"); });
+        requestBtn.setOnAction(e -> { e.consume(); openForm(owner, "Request"); });
+        salesBtn.setOnAction(e -> { e.consume(); openForm(owner, "Sales"); });
+        usersBtn.setOnAction(e -> { e.consume(); openForm(owner, "Users"); });
+        reportsBtn.setOnAction(e -> { e.consume(); openForm(owner, "Reports"); });
         logoutBtn.setOnAction(e -> {
+            e.consume();
             SessionManager.clearSession();
             owner.close();
             new gui.LoginForm().start(new Stage());
@@ -56,7 +87,7 @@ public class NavigationPanel {
 
     private static Button makeMenuButton(String text, boolean active) {
         Button btn = new Button(text);
-        btn.setPrefWidth(160);
+        btn.setPrefWidth(180);
         btn.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
         if (active) {
             GuiUtils.stylePrimary(btn);

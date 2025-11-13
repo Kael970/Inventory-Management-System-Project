@@ -11,6 +11,7 @@ import javafx.stage.Stage;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
@@ -84,9 +85,10 @@ public class DashboardForm extends Application {
 
     private VBox createBestSellingPanel() {
         VBox panel = new VBox(10);
-        panel.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1; -fx-border-radius: 5;");
+        GuiUtils.styleCard(panel);
+        panel.setPadding(new Insets(12));
         Label titleLabel = new Label("Best selling items");
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        GuiUtils.styleHeaderLabel(titleLabel);
         panel.getChildren().add(titleLabel);
 
         TableView<Product> table = new TableView<>();
@@ -110,7 +112,6 @@ public class DashboardForm extends Application {
 
     private HBox createStatsPanel() {
         HBox panel = new HBox(20);
-        panel.setStyle("-fx-background-color: white;");
         panel.setPrefHeight(150);
         int salesCount = saleDAO.getLast7DaysSalesCount();
         int outOfStock = productDAO.getOutOfStockCount();
@@ -122,28 +123,46 @@ public class DashboardForm extends Application {
     }
 
     private VBox createStatCard(String title, String value, Color bgColor, boolean isPrimary) {
-        VBox card = new VBox(5);
+        VBox card = new VBox(6);
         card.setPrefSize(280, 120);
-        // use the provided bgColor (converted to hex) for background
-        card.setStyle("-fx-background-color: " + toHex(bgColor) + "; -fx-border-color: #e6e6e6; -fx-border-width: 1;");
+        GuiUtils.styleCard(card);
+        card.setPadding(new Insets(12));
+        // pick a readable color for text: use primary accent when requested,
+        // otherwise if bgColor is white use a dark fallback; else use the bgColor as accent
+        String colorHex;
+        if (isPrimary) {
+            colorHex = "#0b4f83";
+        } else {
+            // if the provided bgColor is effectively white, pick a dark gray for contrast
+            if (bgColor == null) {
+                colorHex = "#333";
+            } else {
+                String bgHex = toHex(bgColor).toLowerCase();
+                if ("#ffffff".equals(bgHex) || "#fff".equals(bgHex)) {
+                    colorHex = "#333";
+                } else {
+                    colorHex = bgHex;
+                }
+            }
+        }
         Label titleLabel = new Label(title);
-        // choose text color based on isPrimary flag to keep contrast
-        titleLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: " + (isPrimary ? "white" : "#333"));
+        titleLabel.setStyle("-fx-font-size: 14px; -fx-text-fill: " + colorHex + ";");
         Label valueLabel = new Label(value);
-        valueLabel.setStyle("-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: " + (isPrimary ? "white" : "#333"));
+        valueLabel.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: " + colorHex + ";");
         card.getChildren().addAll(titleLabel, valueLabel);
         return card;
     }
 
     private VBox createInventoryPanel() {
         VBox panel = new VBox(10);
-        panel.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1; -fx-border-radius: 5;");
+        GuiUtils.styleCard(panel);
+        panel.setPadding(new Insets(12));
         Label titleLabel = new Label("Overall Inventory");
-        titleLabel.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
+        GuiUtils.styleHeaderLabel(titleLabel);
         panel.getChildren().add(titleLabel);
 
-        HBox statsPanel = new HBox(80);
-        statsPanel.setStyle("-fx-background-color: white;");
+        HBox statsPanel = new HBox(48);
+        statsPanel.setAlignment(Pos.CENTER_LEFT);
         List<Product> products = productDAO.getAllProducts();
         int totalProducts = products.size();
         int lowStocks = 0;

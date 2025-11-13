@@ -50,6 +50,7 @@ public class InventoryForm extends Application {
         searchField = new TextField();
         searchField.setPromptText("Search by product name");
         searchField.setPrefWidth(300);
+        GuiUtils.styleInput(searchField);
         headerPanel.getChildren().add(searchField);
 
         // spacer to push buttons to the right
@@ -72,6 +73,9 @@ public class InventoryForm extends Application {
         if (SessionManager.isAdmin()) headerPanel.getChildren().add(addButton);
         if (SessionManager.isAdmin()) headerPanel.getChildren().add(downloadButton);
 
+        // style header panel as a subtle card for visual grouping and add once
+        GuiUtils.styleCard(headerPanel);
+        headerPanel.setPadding(new Insets(12));
         mainPanel.getChildren().add(headerPanel);
 
         productTable = new TableView<>();
@@ -103,7 +107,12 @@ public class InventoryForm extends Application {
                 return row;
             }
         });
-        mainPanel.getChildren().add(productTable);
+        // wrap table in a card container for consistent spacing
+        VBox tableBox = new VBox(8, productTable);
+        GuiUtils.styleCard(tableBox);
+        tableBox.setPadding(new Insets(10));
+        productTable.setPrefHeight(500);
+        mainPanel.getChildren().add(tableBox);
 
         // Action toolbar placed directly below the table for clearer layout
         HBox actionBar = new HBox(10);
@@ -161,16 +170,22 @@ public class InventoryForm extends Application {
 
         TextField nameField = new TextField();
         nameField.setPromptText("Product Name");
+        GuiUtils.styleInput(nameField);
         TextField buyingField = new TextField();
         buyingField.setPromptText("Buying Price");
+        GuiUtils.styleInput(buyingField);
         TextField sellingField = new TextField();
         sellingField.setPromptText("Selling Price");
+        GuiUtils.styleInput(sellingField);
         TextField qtyField = new TextField();
         qtyField.setPromptText("Quantity");
+        GuiUtils.styleInput(qtyField);
         TextField thresholdField = new TextField();
         thresholdField.setPromptText("Threshold");
+        GuiUtils.styleInput(thresholdField);
         TextField expiryField = new TextField();
         expiryField.setPromptText("Expiry Date (YYYY-MM-DD)");
+        GuiUtils.styleInput(expiryField);
 
         grid.add(new Label("Product Name:"), 0, 0);
         grid.add(nameField, 1, 0);
@@ -234,16 +249,22 @@ public class InventoryForm extends Application {
 
         TextField nameField = new TextField(product.getProductName());
         nameField.setPromptText("Product Name");
+        GuiUtils.styleInput(nameField);
         TextField buyingField = new TextField(String.valueOf(product.getBuyingPrice()));
         buyingField.setPromptText("Buying Price");
+        GuiUtils.styleInput(buyingField);
         TextField sellingField = new TextField(String.valueOf(product.getSellingPrice()));
         sellingField.setPromptText("Selling Price");
+        GuiUtils.styleInput(sellingField);
         TextField qtyField = new TextField(String.valueOf(product.getStockQuantity()));
         qtyField.setPromptText("Quantity");
+        GuiUtils.styleInput(qtyField);
         TextField thresholdField = new TextField(String.valueOf(product.getThresholdValue()));
         thresholdField.setPromptText("Threshold");
+        GuiUtils.styleInput(thresholdField);
         TextField expiryField = new TextField(product.getExpiryDate() != null ? product.getExpiryDate().toString() : "");
         expiryField.setPromptText("Expiry Date (YYYY-MM-DD)");
+        GuiUtils.styleInput(expiryField);
 
         grid.add(new Label("Product Name:"), 0, 0);
         grid.add(nameField, 1, 0);

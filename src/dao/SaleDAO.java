@@ -24,8 +24,9 @@ public class SaleDAO {
      * Create a new sale and update product stock
      */
     public boolean createSale(Sale sale) {
-        String sql = "INSERT INTO sales (product_id, product_name, quantity, unit_price, total_price, user_id) " +
-                    "VALUES (?, ?, ?, ?, ?, ?)";
+        // explicitly set sale_date to NOW() so the row has a timestamp even if DB schema lacks a default
+        String sql = "INSERT INTO sales (product_id, product_name, quantity, unit_price, total_price, user_id, sale_date) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, NOW())";
         try {
             // Start transaction
             connection.setAutoCommit(false);
@@ -70,7 +71,8 @@ public class SaleDAO {
      */
     public int createSaleWithStockCheck(Sale sale) {
         String stockQuery = "SELECT stock_quantity, selling_price, product_name FROM products WHERE product_id = ? FOR UPDATE";
-        String insertSql = "INSERT INTO sales (product_id, product_name, quantity, unit_price, total_price, user_id) VALUES (?, ?, ?, ?, ?, ?)";
+        // include sale_date = NOW() to guarantee timestamp
+        String insertSql = "INSERT INTO sales (product_id, product_name, quantity, unit_price, total_price, user_id, sale_date) VALUES (?, ?, ?, ?, ?, ?, NOW())";
         String updateStock = "UPDATE products SET stock_quantity = stock_quantity - ? WHERE product_id = ?";
         try {
             connection.setAutoCommit(false);

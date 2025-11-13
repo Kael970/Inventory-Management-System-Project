@@ -18,6 +18,7 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import java.util.List;
+import java.util.Objects;
 import javafx.stage.FileChooser;
 import java.io.File;
 import javafx.stage.Screen;
@@ -54,8 +55,8 @@ public class RequestForm extends Application {
         Button addRequestButton = new Button("+ Add Request");
         addRequestButton.setOnAction(this::addRequestAction);
         GuiUtils.stylePrimary(addRequestButton);
-        // only show Add Request to admins
-        if (utils.SessionManager.isAdmin()) {
+        // show Add Request to any logged-in user
+        if (utils.SessionManager.isLoggedIn()) {
             headerPanel.getChildren().add(addRequestButton);
         }
         Button exportExcelBtn = new Button("Export Excel");
@@ -71,6 +72,9 @@ public class RequestForm extends Application {
         if (utils.SessionManager.isAdmin()) {
             headerPanel.getChildren().addAll(exportExcelBtn, exportPdfBtn, exportCsvBtn);
         }
+        // style header panel
+        GuiUtils.styleCard(headerPanel);
+        headerPanel.setPadding(new Insets(12));
         mainPanel.getChildren().add(headerPanel);
 
         requestTable = new TableView<>();
@@ -90,16 +94,18 @@ public class RequestForm extends Application {
         requestTable.getColumns().addAll(java.util.List.of(prodIdCol, prodNameCol, qtyCol, requestedByCol, statusCol, dateCol));
         TableColumn<Request, Void> actionCol = new TableColumn<>("Actions");
         actionCol.setCellFactory(col -> {
-            // reference col to avoid unused-parameter warning
-            col.hashCode();
+            Objects.requireNonNull(col);
             return new TableCell<>() {
                 private final Button approveBtn = new Button("Approve");
                 private final Button rejectBtn = new Button("Reject");
                 private final Button deleteBtn = new Button("Delete");
                 {
-                    approveBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Approved"); });
-                    rejectBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Rejected"); });
-                    deleteBtn.setOnAction(e -> { e.hashCode(); Request req = getTableView().getItems().get(getIndex()); deleteRequest(req); });
+                    approveBtn.setOnAction(e -> { Objects.requireNonNull(e); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Approved"); });
+                    rejectBtn.setOnAction(e -> { Objects.requireNonNull(e); Request req = getTableView().getItems().get(getIndex()); updateRequestStatus(req, "Rejected"); });
+                    deleteBtn.setOnAction(e -> { Objects.requireNonNull(e); Request req = getTableView().getItems().get(getIndex()); deleteRequest(req); });
+                    GuiUtils.stylePrimary(approveBtn);
+                    GuiUtils.styleWarning(rejectBtn);
+                    GuiUtils.styleDanger(deleteBtn);
                 }
                 @Override
                 protected void updateItem(Void item, boolean empty) {
@@ -111,6 +117,7 @@ public class RequestForm extends Application {
                             HBox box = new HBox(5, approveBtn, rejectBtn, deleteBtn);
                             setGraphic(box);
                         } else {
+                            // non-admin users should not see action buttons
                             setGraphic(null);
                         }
                     }
@@ -120,12 +127,19 @@ public class RequestForm extends Application {
         requestTable.getColumns().add(actionCol);
         requestTable.setItems(tableData);
         requestTable.setPrefHeight(500);
-        mainPanel.getChildren().add(requestTable);
+        // wrap table in a card for consistent spacing
+        VBox tableBox = new VBox(8, requestTable);
+        GuiUtils.styleCard(tableBox);
+        tableBox.setPadding(new Insets(10));
+        mainPanel.getChildren().add(tableBox);
 
         statusFilter = new ComboBox<>();
         statusFilter.getItems().addAll("All", "Pending", "Approved", "Rejected");
         statusFilter.setValue("All");
         statusFilter.setOnAction(this::statusFilterAction);
+        // style the status filter input
+        statusFilter.setPrefHeight(36);
+        statusFilter.setStyle("-fx-padding:6 10 6 10; -fx-font-size:13px; -fx-border-radius:6; -fx-background-radius:6;");
         HBox filterPanel = new HBox(10, new Label("Filter by status:"), statusFilter);
         filterPanel.setAlignment(Pos.CENTER_LEFT);
         filterPanel.setPadding(new Insets(0, 0, 10, 0));
@@ -149,13 +163,30 @@ public class RequestForm extends Application {
         tableData.clear();
         List<Request> requests;
         String filter = statusFilter.getValue();
-        if (filter.equals("All")) {
-            requests = requestDAO.getAllRequests();
-        } else if (filter.equals("Pending")) {
-            requests = requestDAO.getPendingRequests();
+        boolean showAll = utils.SessionManager.isAdmin();
+        if (showAll) {
+            if (filter.equals("All")) {
+                requests = requestDAO.getAllRequests();
+            } else if (filter.equals("Pending")) {
+                requests = requestDAO.getPendingRequests();
+            } else {
+                requests = requestDAO.getAllRequests();
+                requests.removeIf(r -> !r.getStatus().equals(filter));
+            }
         } else {
-            requests = requestDAO.getAllRequests();
-            requests.removeIf(r -> !r.getStatus().equals(filter));
+            // Non-admin: show only their own requests
+            Integer currentUserId = null;
+            if (utils.SessionManager.getCurrentUser() != null) {
+                currentUserId = utils.SessionManager.getCurrentUser().getUserId();
+            }
+            if (currentUserId == null) {
+                requests = java.util.Collections.emptyList();
+            } else {
+                requests = requestDAO.getRequestsByUser(currentUserId);
+                if (!filter.equals("All")) {
+                    requests.removeIf(r -> !r.getStatus().equals(filter));
+                }
+            }
         }
         tableData.addAll(requests);
     }
@@ -168,19 +199,39 @@ public class RequestForm extends Application {
         grid.setHgap(10);
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
-        ComboBox<Product> prodCombo = new ComboBox<>();
+        final ComboBox<Product> prodCombo = new ComboBox<>();
         prodCombo.setPromptText("Select Product");
         prodCombo.setItems(FXCollections.observableArrayList(productDAO.getAllProducts()));
-        TextField qty = new TextField();
+        final TextField qty = new TextField();
         qty.setPromptText("Requested Quantity");
-        TextField requestedBy = new TextField();
-        requestedBy.setPromptText("Requested By");
+        // style inputs
+        prodCombo.setPrefHeight(36);
+        prodCombo.setStyle("-fx-padding:6 10 6 10; -fx-font-size:13px; -fx-border-radius:6; -fx-background-radius:6;");
+        GuiUtils.styleInput(qty);
+
+        // Show requester name as label (do not accept free text)
+        Label requestedByLabel = new Label();
+        final String currentUserDisplay;
+        final Integer currentUserId;
+        if (utils.SessionManager.getCurrentUser() != null) {
+            String tmpName = utils.SessionManager.getCurrentUser().getFullName();
+            if (tmpName == null || tmpName.trim().isEmpty()) {
+                tmpName = utils.SessionManager.getCurrentUser().getUsername();
+            }
+            currentUserDisplay = tmpName;
+            currentUserId = utils.SessionManager.getCurrentUser().getUserId();
+        } else {
+            currentUserDisplay = "";
+            currentUserId = null;
+        }
+        requestedByLabel.setText(currentUserDisplay);
+
         grid.add(new Label("Product:"), 0, 0);
         grid.add(prodCombo, 1, 0);
         grid.add(new Label("Requested Quantity:"), 0, 1);
         grid.add(qty, 1, 1);
         grid.add(new Label("Requested By:"), 0, 2);
-        grid.add(requestedBy, 1, 2);
+        grid.add(requestedByLabel, 1, 2);
         dialog.getDialogPane().setContent(grid);
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveButtonType, ButtonType.CANCEL);
@@ -190,12 +241,15 @@ public class RequestForm extends Application {
                     Product selected = prodCombo.getValue();
                     if (selected == null) throw new Exception("Select a product.");
                     int quantity = Integer.parseInt(qty.getText());
-                    return new Request(
-                        selected.getProductId(),
-                        selected.getProductName(),
-                        quantity,
-                        requestedBy.getText()
-                    );
+                    Request req;
+                    if (currentUserId != null) {
+                        req = new Request(selected.getProductId(), selected.getProductName(), quantity, currentUserId);
+                        req.setRequestedByName(currentUserDisplay);
+                    } else {
+                        // fallback to legacy string-based constructor
+                        req = new Request(selected.getProductId(), selected.getProductName(), quantity, currentUserDisplay);
+                    }
+                    return req;
                 } catch (Exception ex) {
                     showAlert("Error: " + ex.getMessage(), Alert.AlertType.ERROR);
                 }

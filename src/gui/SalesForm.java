@@ -46,7 +46,7 @@ public class SalesForm extends Application {
         container.setPadding(new Insets(10));
 
         VBox center = new VBox(10);
-        center.setPadding(new Insets(10));
+        center.setPadding(new Insets(12));
         center.setAlignment(Pos.TOP_LEFT);
 
         VBox sidebar = NavigationPanel.createSidebar(primaryStage, "Sales");
@@ -56,8 +56,9 @@ public class SalesForm extends Application {
         GridPane record = new GridPane();
         record.setHgap(8);
         record.setVgap(8);
-        record.setPadding(new Insets(10));
-        record.setStyle("-fx-border-color: #ccc; -fx-border-radius: 5; -fx-border-width: 1; -fx-background-color: #f9f9f9;");
+        record.setPadding(new Insets(12));
+        // use card styling helper
+        GuiUtils.styleCard(record);
 
         record.add(new Label("Product:"), 0, 0);
         productCombo = new ComboBox<>();
@@ -67,18 +68,22 @@ public class SalesForm extends Application {
         if (!productCombo.getItems().isEmpty()) {
             productCombo.getSelectionModel().select(0);
         }
+        GuiUtils.styleComboBox(productCombo);
         record.add(productCombo, 1, 0);
 
         record.add(new Label("Quantity:"), 0, 1);
         qtySpinner = new Spinner<>(1, 100000, 1);
+        qtySpinner.setPrefHeight(36);
         record.add(qtySpinner, 1, 1);
 
         record.add(new Label("Unit Price:"), 0, 2);
         unitPriceLabel = new Label("0.00");
+        unitPriceLabel.setStyle("-fx-font-weight:bold; -fx-font-size:14px;");
         record.add(unitPriceLabel, 1, 2);
 
         record.add(new Label("Total:"), 0, 3);
         totalPriceLabel = new Label("0.00");
+        totalPriceLabel.setStyle("-fx-font-weight:bold; -fx-font-size:14px;");
         record.add(totalPriceLabel, 1, 3);
 
         Button submit = new Button("Record & Print Receipt");

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="pdfbox-tools-3.0.6">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/pdfbox-tools-3.0.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/pdfbox-debugger-3.0.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/xmpbox-3.0.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/preflight-3.0.6.jar!/" />
+      <root url="jar://$PROJECT_DIR$/lib/pdfbox-io-3.0.6.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

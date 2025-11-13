@@ -102,10 +102,13 @@ public class DatabaseMigration {
                 "product_id INT NOT NULL," +
                 "product_name VARCHAR(100) NOT NULL," +
                 "requested_quantity INT NOT NULL," +
-                "requested_by VARCHAR(100) NOT NULL," +
+                // store the requesting user's id (foreign key) and a display name
+                "requested_by_user_id INT NULL," +
+                "requested_by_name VARCHAR(100) NULL," +
                 "status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending'," +
                 "request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
-                "FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE" +
+                "FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE," +
+                "FOREIGN KEY (requested_by_user_id) REFERENCES users(user_id) ON DELETE SET NULL" +
                 ")";
             stmt.executeUpdate(requestsTable);
             System.out.println("Requests table created successfully.");

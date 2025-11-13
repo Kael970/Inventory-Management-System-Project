@@ -78,6 +78,9 @@ public class UserManagementForm extends Application {
         if (utils.SessionManager.isAdmin()) {
             topActions.getChildren().add(deleteBtn);
         }
+        // style the top action area as a card
+        GuiUtils.styleCard(topActions);
+        topActions.setPadding(new Insets(12));
         mainPanel.getChildren().add(topActions);
 
         userTable = new TableView<>();
@@ -106,7 +109,11 @@ public class UserManagementForm extends Application {
             });
             return row;
         });
-        mainPanel.getChildren().add(userTable);
+        // wrap the table in a subtle card for consistent spacing
+        VBox tableBox = new VBox(8, userTable);
+        GuiUtils.styleCard(tableBox);
+        tableBox.setPadding(new Insets(10));
+        mainPanel.getChildren().add(tableBox);
 
         container.setCenter(mainPanel);
         loadUsers();
@@ -137,10 +144,13 @@ public class UserManagementForm extends Application {
         grid.setPadding(new Insets(20));
         TextField username = new TextField();
         username.setPromptText("Username");
+        GuiUtils.styleInput(username);
         PasswordField password = new PasswordField();
         password.setPromptText("Password");
+        GuiUtils.styleInput(password);
         TextField full = new TextField();
         full.setPromptText("Full Name");
+        GuiUtils.styleInput(full);
         ComboBox<String> role = new ComboBox<>(FXCollections.observableArrayList("Admin", "Staff"));
         role.setValue("Staff");
         grid.add(new Label("Username:"), 0, 0);
@@ -180,9 +190,12 @@ public class UserManagementForm extends Application {
         grid.setVgap(10);
         grid.setPadding(new Insets(20));
         TextField username = new TextField(user.getUsername());
+        GuiUtils.styleInput(username);
         PasswordField password = new PasswordField();
         password.setPromptText("Password (leave blank to keep)");
+        GuiUtils.styleInput(password);
         TextField full = new TextField(user.getFullName());
+        GuiUtils.styleInput(full);
         ComboBox<String> role = new ComboBox<>(FXCollections.observableArrayList("Admin", "Staff"));
         role.setValue(user.getRole());
         grid.add(new Label("Username:"), 0, 0);
