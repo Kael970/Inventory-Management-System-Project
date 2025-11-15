@@ -16,6 +16,8 @@ import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.paint.Color;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,21 @@ public class DashboardForm extends Application {
         productDAO = new ProductDAO();
         saleDAO = new SaleDAO();
         requestDAO = new RequestDAO();
+
+        // Register primaryStage with AppNavigator if not already
+        AppNavigator.init(primaryStage);
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/DashboardForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return; // controller will initialize content
+        } catch (Exception ex) {
+            Logger.error("Failed to load DashboardForm.fxml, falling back to programmatic UI.", ex);
+        }
 
         primaryStage.setTitle("IMS - Dashboard");
         BorderPane container = new BorderPane();

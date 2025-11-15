@@ -23,6 +23,8 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
 public class RequestForm extends Application {
     private RequestDAO requestDAO;
@@ -35,6 +37,20 @@ public class RequestForm extends Application {
     public void start(Stage primaryStage) {
         requestDAO = new RequestDAO();
         productDAO = new ProductDAO();
+        AppNavigator.init(primaryStage);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/RequestForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return;
+        } catch (Exception ex) {
+            Logger.error("Failed to load RequestForm.fxml, falling back to programmatic UI.", ex);
+        }
+
+        // fallback to legacy programmatic UI on error
         primaryStage.setTitle("IMS - Requests");
         BorderPane container = new BorderPane();
         container.setPadding(new Insets(10));
@@ -191,7 +207,7 @@ public class RequestForm extends Application {
         tableData.addAll(requests);
     }
 
-    private void showAddRequestDialog() {
+    public void showAddRequestDialog() {
         Dialog<Request> dialog = new Dialog<>();
         dialog.setTitle("Add Request");
         dialog.setHeaderText("Fill in request details");

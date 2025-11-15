@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.UserManagementFormController">
+    <left>
+        <VBox fx:id="sidebarPlaceholder" />
+    </left>
+    <center>
+        <VBox fx:id="mainPanel" spacing="10" padding="20" />
+    </center>
+</BorderPane>
+

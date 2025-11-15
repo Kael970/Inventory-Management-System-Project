@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.InventoryFormController">
+    <left>
+        <VBox fx:id="sidebarPlaceholder" />
+    </left>
+    <center>
+        <VBox fx:id="mainPanel" spacing="10" padding="20">
+            <HBox fx:id="headerPanel" spacing="10" alignment="CENTER_LEFT">
+                <Label text="Products" style="-fx-font-size:16px; -fx-font-weight:bold;" />
+                <TextField fx:id="searchField" promptText="Search by product name" prefWidth="300" />
+                <Region HBox.hgrow="ALWAYS" />
+                <Button fx:id="searchBtn" text="Search" />
+                <Button fx:id="addButton" text="+ Add Product" />
+                <Button fx:id="downloadButton" text="Download all" />
+            </HBox>
+
+            <TableView fx:id="productTable" prefHeight="500">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" />
+                    <TableColumn fx:id="colName" text="Name" />
+                    <TableColumn fx:id="colBuying" text="Buying Price" />
+                    <TableColumn fx:id="colSelling" text="Selling Price" />
+                    <TableColumn fx:id="colStock" text="Stock" />
+                    <TableColumn fx:id="colThreshold" text="Threshold" />
+                </columns>
+            </TableView>
+
+            <HBox fx:id="actionBar" spacing="10" alignment="CENTER_LEFT">
+                <Button fx:id="editButton" text="Edit Selected" />
+                <Button fx:id="deleteButton" text="Delete Selected" />
+            </HBox>
+        </VBox>
+    </center>
+</BorderPane>

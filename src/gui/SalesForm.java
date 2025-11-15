@@ -22,6 +22,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -41,6 +43,19 @@ public class SalesForm extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        AppNavigator.init(primaryStage);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/SalesForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return;
+        } catch (Exception ex) {
+            Logger.error("Failed to load SalesForm.fxml, falling back to programmatic UI.", ex);
+        }
+
         primaryStage.setTitle("IMS - Sales");
         BorderPane container = new BorderPane();
         container.setPadding(new Insets(10));

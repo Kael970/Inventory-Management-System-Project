@@ -20,6 +20,8 @@ import java.io.File;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
 public class ReportsForm extends Application {
     private final SaleDAO saleDAO = new SaleDAO();
@@ -40,6 +42,19 @@ public class ReportsForm extends Application {
     @SuppressWarnings("deprecation")
     @Override
     public void start(Stage primaryStage) {
+        AppNavigator.init(primaryStage);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/ReportsForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return;
+        } catch (Exception ex) {
+            Logger.error("Failed to load ReportsForm.fxml, falling back to programmatic UI.", ex);
+        }
+
         primaryStage.setTitle("IMS - Reports");
         BorderPane container = new BorderPane();
         container.setPadding(new Insets(10));
@@ -206,10 +221,12 @@ public class ReportsForm extends Application {
 
         double total = 0;
         int totalItems = 0;
-        for (Sale s : sales) {
-            reportData.add(s);
-            total += s.getTotalPrice();
-            totalItems += s.getQuantity();
+        if (sales != null) {
+            for (Sale s : sales) {
+                reportData.add(s);
+                total += s.getTotalPrice();
+                totalItems += s.getQuantity();
+            }
         }
         totalLabel.setText("Total: " + String.format("%.2f", total));
         totalCardValue.setText(String.format("%.2f", total));
@@ -222,7 +239,7 @@ public class ReportsForm extends Application {
             utils.Logger.info("Reports.loadRange: DB total sales=" + (all == null ? 0 : all.size()));
         } catch (Exception ignored) {}
         if (reportData.isEmpty()) {
-            if (all.isEmpty()) {
+            if (all == null || all.isEmpty()) {
                 statusLabel.setText("No sales found for the selected range — database contains zero sales.");
             } else {
                 // compute min/max dates
@@ -246,7 +263,7 @@ public class ReportsForm extends Application {
         }
         int days = type.equals("Daily") ? 1 : type.equals("Weekly") ? 7 : 30;
         Map<String,Integer> top = saleDAO.getTopSellingProducts(1, days);
-        String txt = top.isEmpty() ? "-" : top.entrySet().iterator().next().getKey() + " (" + top.entrySet().iterator().next().getValue() + ")";
+        String txt = top == null || top.isEmpty() ? "-" : top.entrySet().iterator().next().getKey() + " (" + top.entrySet().iterator().next().getValue() + ")";
         topSellingLabel.setText("Top selling: " + txt);
         topCardValue.setText(txt);
     }

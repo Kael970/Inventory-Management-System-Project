@@ -15,7 +15,10 @@ import javafx.geometry.Pos;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
 import java.util.List;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
+@SuppressWarnings("unchecked")
 public class UserManagementForm extends Application {
     private final UserDAO userDAO = new UserDAO();
     private TableView<User> userTable;
@@ -23,6 +26,19 @@ public class UserManagementForm extends Application {
 
     @Override
     public void start(Stage primaryStage) {
+        AppNavigator.init(primaryStage);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/UserManagementForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return;
+        } catch (Exception ex) {
+            Logger.error("Failed to load UserManagementForm.fxml, falling back to programmatic UI.", ex);
+        }
+
         primaryStage.setTitle("IMS - Users");
         BorderPane container = new BorderPane();
         container.setPadding(new Insets(10));
@@ -134,7 +150,7 @@ public class UserManagementForm extends Application {
         userData.addAll(userDAO.getAllUsers());
     }
 
-    private void showAddDialog() {
+    public void showAddDialog() {
         Dialog<User> dialog = new Dialog<>();
         dialog.setTitle("Add User");
         dialog.setHeaderText("Fill in user details");
@@ -180,7 +196,7 @@ public class UserManagementForm extends Application {
         });
     }
 
-    private void showEditDialog(User user) {
+    public void showEditDialog(User user) {
         if (user == null) return;
         Dialog<User> dialog = new Dialog<>();
         dialog.setTitle("Edit User");

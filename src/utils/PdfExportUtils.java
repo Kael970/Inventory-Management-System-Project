@@ -21,7 +21,7 @@ public class PdfExportUtils {
             doc.addPage(page);
             PDPageContentStream content = new PDPageContentStream(doc, page);
             content.beginText();
-            // Use built-in font for PDFBox 3.x (Standard14Fonts)
+            // Use built-in font for PDFBox 3.x
             content.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 12);
             content.newLineAtOffset(50, 750);
             content.showText("Requests Report");

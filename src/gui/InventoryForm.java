@@ -16,6 +16,8 @@ import javafx.geometry.Pos;
 import javafx.stage.FileChooser;
 import javafx.stage.Screen;
 import javafx.geometry.Rectangle2D;
+import javafx.fxml.FXMLLoader;
+import utils.Logger;
 
 import java.io.File;
 import java.util.List;
@@ -29,6 +31,20 @@ public class InventoryForm extends Application {
     @Override
     public void start(Stage primaryStage) {
         productDAO = new ProductDAO();
+        AppNavigator.init(primaryStage);
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/gui/InventoryForm.fxml"));
+            BorderPane root = loader.load();
+            Scene scene = new Scene(root);
+            primaryStage.setScene(scene);
+            primaryStage.setMaximized(true);
+            primaryStage.show();
+            return;
+        } catch (Exception ex) {
+            Logger.error("Failed to load InventoryForm.fxml, falling back to programmatic UI.", ex);
+        }
+
+        // fallback to programmatic UI (existing code)...
         primaryStage.setTitle("IMS - Inventory");
         BorderPane container = new BorderPane();
         container.setPadding(new Insets(10));
@@ -95,17 +111,14 @@ public class InventoryForm extends Application {
         productTable.getColumns().addAll(java.util.List.of(idCol, nameCol, buyCol, sellCol, qtyCol, threshCol));
         productTable.setItems(tableData);
         productTable.setPrefHeight(500);
-        productTable.setRowFactory(new javafx.util.Callback<TableView<Product>, TableRow<Product>>() {
-            @Override
-            public TableRow<Product> call(TableView<Product> tv) {
-                TableRow<Product> row = new TableRow<>();
-                row.setOnMouseClicked(event -> {
-                    if (!row.isEmpty() && event.getClickCount() == 2 && SessionManager.isAdmin()) {
-                        showEditProductDialog(row.getItem());
-                    }
-                });
-                return row;
-            }
+        productTable.setRowFactory(tv -> {
+            TableRow<Product> row = new TableRow<>();
+            row.setOnMouseClicked(event -> {
+                if (!row.isEmpty() && event.getClickCount() == 2 && SessionManager.isAdmin()) {
+                    showEditProductDialog(row.getItem());
+                }
+            });
+            return row;
         });
         // wrap table in a card container for consistent spacing
         VBox tableBox = new VBox(8, productTable);
@@ -120,11 +133,11 @@ public class InventoryForm extends Application {
         actionBar.setPadding(new Insets(8, 0, 0, 0));
 
         Button editButton = new Button("Edit Selected");
-        editButton.setOnAction(e -> editSelectedAction());
+        editButton.setOnAction(this::editSelectedAction);
         GuiUtils.styleWarning(editButton);
 
         Button deleteButton = new Button("Delete Selected");
-        deleteButton.setOnAction(e -> deleteSelectedProduct());
+        deleteButton.setOnAction(this::deleteSelectedProduct);
         GuiUtils.styleDanger(deleteButton);
 
         // Only show edit/delete buttons to admins and add them to the action bar
@@ -154,7 +167,7 @@ public class InventoryForm extends Application {
         tableData.addAll(products);
     }
 
-    private void showAddProductDialog() {
+    public void showAddProductDialog() {
         if (!SessionManager.isAdmin()) {
             showAlert("Only Admin can add products.", Alert.AlertType.WARNING);
             return;
@@ -233,7 +246,7 @@ public class InventoryForm extends Application {
         });
     }
 
-    private void showEditProductDialog(Product product) {
+    public void showEditProductDialog(Product product) {
         if (!SessionManager.isAdmin()) {
             showAlert("Only Admin can edit products.", Alert.AlertType.WARNING);
             return;
@@ -376,13 +389,45 @@ public class InventoryForm extends Application {
     private void searchAction(javafx.event.ActionEvent e) { loadProducts(searchField.getText().trim()); }
     private void addProductAction(javafx.event.ActionEvent e) { showAddProductDialog(); }
     private void downloadAction(javafx.event.ActionEvent e) { exportAllProducts(); }
-    private void editSelectedAction() {
+    private void editSelectedAction(javafx.event.ActionEvent e) {
         Product selected = productTable.getSelectionModel().getSelectedItem();
         if (selected != null && SessionManager.isAdmin()) {
             showEditProductDialog(selected);
         } else {
             showAlert("Select a product and ensure you are Admin.", Alert.AlertType.WARNING);
         }
+    }
+
+    private void deleteSelectedProduct(javafx.event.ActionEvent e) {
+        // delegate to previous implementation logic
+        if (!SessionManager.isAdmin()) {
+            showAlert("Only Admin can delete products.", Alert.AlertType.WARNING);
+            return;
+        }
+        Product selected = productTable.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            showAlert("Select a product to delete.", Alert.AlertType.WARNING);
+            return;
+        }
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Confirm Delete");
+        alert.setHeaderText("Are you sure you want to delete this product?");
+        alert.setContentText(selected.getProductName());
+
+        alert.showAndWait().ifPresent(response -> {
+            if (response == ButtonType.OK) {
+                try {
+                    if (productDAO.deleteProduct(selected.getProductId())) {
+                        showAlert("Product deleted successfully!", Alert.AlertType.INFORMATION);
+                        loadProducts(null);
+                    } else {
+                        showAlert("Failed to delete product!", Alert.AlertType.ERROR);
+                    }
+                } catch (Exception ex) {
+                    showAlert("Error deleting product: " + ex.getMessage(), Alert.AlertType.ERROR);
+                }
+            }
+        });
     }
 
     static void main(String[] args) {

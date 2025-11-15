@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.control.Spinner?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.SalesFormController">
+    <left>
+        <VBox fx:id="sidebarPlaceholder" />
+    </left>
+    <center>
+        <HBox spacing="10" padding="12">
+            <children>
+                <VBox fx:id="recordPanel" spacing="8" prefWidth="360">
+                    <children>
+                        <Label text="Record Sale" style="-fx-font-size:16px; -fx-font-weight:bold;" />
+                        <GridPane hgap="8" vgap="8">
+                            <children>
+                                <Label text="Product:" GridPane.rowIndex="0" GridPane.columnIndex="0" />
+                                <ComboBox fx:id="productCombo" prefWidth="280" GridPane.rowIndex="0" GridPane.columnIndex="1" />
+                                <Label text="Quantity:" GridPane.rowIndex="1" GridPane.columnIndex="0" />
+                                <Spinner fx:id="qtySpinner" GridPane.rowIndex="1" GridPane.columnIndex="1" />
+                                <Label text="Unit Price:" GridPane.rowIndex="2" GridPane.columnIndex="0" />
+                                <Label fx:id="unitPriceLabel" text="0.00" GridPane.rowIndex="2" GridPane.columnIndex="1" />
+                                <Label text="Total:" GridPane.rowIndex="3" GridPane.columnIndex="0" />
+                                <Label fx:id="totalPriceLabel" text="0.00" GridPane.rowIndex="3" GridPane.columnIndex="1" />
+                                <Button fx:id="recordBtn" text="Record & Print Receipt" GridPane.rowIndex="4" GridPane.columnIndex="0" GridPane.columnSpan="2" />
+                                <Button fx:id="refreshBtn" text="Refresh Prices" GridPane.rowIndex="5" GridPane.columnIndex="0" GridPane.columnSpan="2" />
+                                <Button fx:id="exportExcelBtn" text="Export Excel History" GridPane.rowIndex="6" GridPane.columnIndex="0" GridPane.columnSpan="2" />
+                            </children>
+                        </GridPane>
+                    </children>
+                </VBox>
+
+                <VBox spacing="8" HBox.hgrow="ALWAYS">
+                    <Label text="Sales History" style="-fx-font-size:16px; -fx-font-weight:bold;" />
+                    <TableView fx:id="historyTable" prefHeight="500">
+                        <columns>
+                            <TableColumn fx:id="colId" text="ID" />
+                            <TableColumn fx:id="colProduct" text="Product" />
+                            <TableColumn fx:id="colQty" text="Qty" />
+                            <TableColumn fx:id="colUnit" text="Unit" />
+                            <TableColumn fx:id="colTotal" text="Total" />
+                            <TableColumn fx:id="colDate" text="Date" />
+                            <TableColumn fx:id="colPrint" text="Print" />
+                            <TableColumn fx:id="colEdit" text="Edit" />
+                            <TableColumn fx:id="colDelete" text="Delete" />
+                        </columns>
+                    </TableView>
+                </VBox>
+            </children>
+        </HBox>
+    </center>
+</BorderPane>

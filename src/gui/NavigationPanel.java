@@ -69,17 +69,16 @@ public class NavigationPanel {
         }
         sidebar.getChildren().addAll(logoutBtn);
 
-        dashboardBtn.setOnAction(e -> { e.consume(); openForm(owner, "Dashboard"); });
-        itemsBtn.setOnAction(e -> { e.consume(); openForm(owner, "Items"); });
-        requestBtn.setOnAction(e -> { e.consume(); openForm(owner, "Request"); });
-        salesBtn.setOnAction(e -> { e.consume(); openForm(owner, "Sales"); });
-        usersBtn.setOnAction(e -> { e.consume(); openForm(owner, "Users"); });
-        reportsBtn.setOnAction(e -> { e.consume(); openForm(owner, "Reports"); });
+        dashboardBtn.setOnAction(e -> { e.consume(); AppNavigator.showDashboard(); });
+        itemsBtn.setOnAction(e -> { e.consume(); AppNavigator.showInventory(); });
+        requestBtn.setOnAction(e -> { e.consume(); AppNavigator.showRequest(); });
+        salesBtn.setOnAction(e -> { e.consume(); AppNavigator.showSales(); });
+        usersBtn.setOnAction(e -> { e.consume(); AppNavigator.showUsers(); });
+        reportsBtn.setOnAction(e -> { e.consume(); AppNavigator.showReports(); });
         logoutBtn.setOnAction(e -> {
             e.consume();
             SessionManager.clearSession();
-            owner.close();
-            new gui.LoginForm().start(new Stage());
+            AppNavigator.showLogin();
         });
 
         return sidebar;
@@ -99,14 +98,14 @@ public class NavigationPanel {
     }
 
     private static void openForm(Stage owner, String form) {
-        owner.close();
+        // Use AppNavigator to switch screens by name; keeps navigation centralized
         switch (form) {
-            case "Dashboard": new DashboardForm().start(new Stage()); break;
-            case "Items": new InventoryForm().start(new Stage()); break;
-            case "Request": new RequestForm().start(new Stage()); break;
-            case "Sales": new SalesForm().start(new Stage()); break;
-            case "Users": new UserManagementForm().start(new Stage()); break;
-            case "Reports": new ReportsForm().start(new Stage()); break;
+            case "Dashboard": AppNavigator.showDashboard(); break;
+            case "Items": AppNavigator.showInventory(); break;
+            case "Request": AppNavigator.showRequest(); break;
+            case "Sales": AppNavigator.showSales(); break;
+            case "Users": AppNavigator.showUsers(); break;
+            case "Reports": AppNavigator.showReports(); break;
         }
     }
 }

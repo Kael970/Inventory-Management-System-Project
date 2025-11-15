@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.shape.Rectangle?>
+<?import javafx.geometry.Insets?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.LoginFormController">
+    <center>
+        <HBox fx:id="mainPanel" spacing="40" alignment="CENTER" prefWidth="1200" prefHeight="760" styleClass="login-main">
+            <!-- Left logo column -->
+            <StackPane prefWidth="600" alignment="CENTER" style="-fx-background-color: white;">
+                <Rectangle width="520" height="520" arcWidth="0" arcHeight="0" fill="#b3c6db" />
+                <ImageView fx:id="largeLogoView" fitWidth="420" fitHeight="420" preserveRatio="true" />
+            </StackPane>
+
+            <!-- Right login column -->
+            <VBox fx:id="rightPanel" prefWidth="420" alignment="CENTER" spacing="16">
+                <padding>
+                    <Insets top="40" right="40" bottom="40" left="40" />
+                </padding>
+                <HBox fx:id="titleRow" spacing="10" alignment="CENTER_LEFT">
+                    <ImageView fx:id="smallLogoView" fitWidth="36" fitHeight="36" preserveRatio="true" />
+                    <Label text="Inventory Management System" style="-fx-font-size:22px; -fx-font-weight:bold; -fx-text-fill:#153859;" />
+                </HBox>
+
+                <VBox fx:id="formBox" spacing="12" prefWidth="360" alignment="CENTER_LEFT">
+                    <TextField fx:id="emailField" promptText="Email Address" prefWidth="360" />
+                    <PasswordField fx:id="passwordField" promptText="Password" prefWidth="360" />
+                    <HBox spacing="10" alignment="CENTER_LEFT">
+                        <CheckBox fx:id="rememberCheck" text="Remember Me" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <Hyperlink text="Forgot Password?" />
+                    </HBox>
+                    <Button fx:id="loginButton" text="Login" prefWidth="360" onAction="#onLogin" />
+                    <VBox spacing="6" alignment="CENTER">
+                        <HBox spacing="6" alignment="CENTER">
+                            <Label text="Login as" style="-fx-font-size: 12px; -fx-text-fill: #333;" />
+                            <Hyperlink text="Admin" />
+                        </HBox>
+                        <HBox spacing="6" alignment="CENTER">
+                            <Label text="Don't have an account?" />
+                            <Hyperlink text="Sign in" />
+                        </HBox>
+                    </VBox>
+                </VBox>
+            </VBox>
+        </HBox>
+    </center>
+</BorderPane>

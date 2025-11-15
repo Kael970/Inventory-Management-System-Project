@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="gui.DashboardFormController">
+    <left>
+        <VBox fx:id="sidebarPlaceholder" />
+    </left>
+    <center>
+        <ScrollPane fx:id="centerScroll" fitToWidth="true">
+            <VBox fx:id="mainPanel" spacing="20" padding="20">
+                <!-- Best selling items card -->
+                <VBox fx:id="bestSellingCard" spacing="8">
+                    <children>
+                        <Label text="Best selling items" style="-fx-font-size:16px; -fx-font-weight:bold;" />
+                        <TableView fx:id="bestSellingTable" prefHeight="180.0">
+                            <columns>
+                                <TableColumn fx:id="nameCol" text="Product" />
+                                <TableColumn fx:id="idCol" text="Product ID" prefWidth="90" />
+                                <TableColumn fx:id="qtyCol" text="Remaining Quantity" prefWidth="140" />
+                                <TableColumn fx:id="priceCol" text="Price" prefWidth="90" />
+                                <TableColumn fx:id="availCol" text="Availability" prefWidth="120" />
+                            </columns>
+                        </TableView>
+                    </children>
+                </VBox>
+
+                <!-- Stats row -->
+                <HBox fx:id="statsRow" spacing="20" prefHeight="150.0">
+                    <children>
+                        <VBox style="-fx-background-color: #fff; -fx-padding:12; -fx-border-radius:8; -fx-background-radius:8; -fx-border-color:#ddd;" alignment="CENTER_LEFT">
+                            <Label text="Sales" />
+                            <Label fx:id="salesCountLabel" text="0" style="-fx-font-size:28px; -fx-font-weight:bold;" />
+                        </VBox>
+                        <VBox style="-fx-background-color: #fff; -fx-padding:12; -fx-border-radius:8; -fx-background-radius:8; -fx-border-color:#ddd;" alignment="CENTER_LEFT">
+                            <Label text="Out of stock" />
+                            <Label fx:id="outOfStockLabel" text="0" style="-fx-font-size:28px; -fx-font-weight:bold;" />
+                        </VBox>
+                        <VBox style="-fx-background-color: #fff; -fx-padding:12; -fx-border-radius:8; -fx-background-radius:8; -fx-border-color:#ddd;" alignment="CENTER_LEFT">
+                            <Label text="Requested items" />
+                            <Label fx:id="requestedItemsLabel" text="0" style="-fx-font-size:28px; -fx-font-weight:bold;" />
+                        </VBox>
+                    </children>
+                </HBox>
+
+                <!-- Inventory summary -->
+                <VBox spacing="8">
+                    <Label text="Overall Inventory" style="-fx-font-size:14px; -fx-font-weight:bold;" />
+                    <HBox fx:id="inventoryStats" spacing="48">
+                        <children>
+                            <VBox alignment="CENTER_LEFT">
+                                <Label text="Sales (7d)" />
+                                <Label fx:id="sales7dLabel" text="0" style="-fx-font-size:20px; -fx-font-weight:bold;" />
+                                <Label text="Last 7 days" style="-fx-font-size:10px; -fx-text-fill:gray;" />
+                            </VBox>
+                            <VBox alignment="CENTER_LEFT">
+                                <Label text="Total Products" />
+                                <Label fx:id="totalProductsLabel" text="0" style="-fx-font-size:20px; -fx-font-weight:bold;" />
+                                <Label text="All items" style="-fx-font-size:10px; -fx-text-fill:gray;" />
+                            </VBox>
+                            <VBox alignment="CENTER_LEFT">
+                                <Label text="Top Selling (30d)" />
+                                <Label fx:id="topSellingLabel" text="-" style="-fx-font-size:20px; -fx-font-weight:bold;" />
+                                <Label text="Qty sold" style="-fx-font-size:10px; -fx-text-fill:gray;" />
+                            </VBox>
+                            <VBox alignment="CENTER_LEFT">
+                                <Label text="Low Stocks" />
+                                <Label fx:id="lowStocksLabel" text="0" style="-fx-font-size:20px; -fx-font-weight:bold;" />
+                                <Label text="At/below threshold" style="-fx-font-size:10px; -fx-text-fill:gray;" />
+                            </VBox>
+                        </children>
+                    </HBox>
+                </VBox>
+            </VBox>
+        </ScrollPane>
+    </center>
+</BorderPane>
